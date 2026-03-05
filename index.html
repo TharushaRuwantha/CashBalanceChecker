@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cash Balance Checker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ─── Page Shell ─── -->
+  <div class="app">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="18" rx="2"/>
+            <line x1="8"  y1="9"  x2="16" y2="9"/>
+            <line x1="8"  y1="13" x2="16" y2="13"/>
+            <line x1="8"  y1="17" x2="12" y2="17"/>
+          </svg>
+          <span class="logo-text">Cash<strong>Balance</strong></span>
+        </div>
+
+        <div class="header-right">
+          <!-- Date picker -->
+          <div class="field-group">
+            <label for="report-date">Report Date</label>
+            <input type="date" id="report-date" />
+          </div>
+
+          <!-- File upload -->
+          <label class="btn btn-outline" for="file-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload .txt File
+          </label>
+          <input type="file" id="file-input" accept=".txt" hidden />
+
+          <!-- Action buttons -->
+          <button class="btn btn-primary" id="btn-calculate" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"/>
+              <rect x="9" y="3" width="6" height="4" rx="1"/>
+            </svg>
+            Calculate
+          </button>
+          <button class="btn btn-ghost" id="btn-print">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="app-main">
+
+      <!-- Upload prompt (shown when no file loaded) -->
+      <div class="upload-prompt" id="upload-prompt">
+        <div class="upload-card">
+          <div class="upload-icon">
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="4"  y="4"  width="56" height="56" rx="8"/>
+              <path d="M32 42V22M22 32l10-10 10 10"/>
+              <line x1="20" y1="48" x2="44" y2="48"/>
+            </svg>
+          </div>
+          <h2>Upload your data file</h2>
+          <p>Select a <code>.txt</code> file exported from your cashier system to populate the report.</p>
+          <label class="btn btn-primary btn-lg" for="file-input">
+            Choose File
+          </label>
+          <p class="hint">Supported format: plain text (.txt)</p>
+        </div>
+      </div>
+
+      <!-- Report panel (hidden until file loaded) -->
+      <div class="report-panel" id="report-panel" hidden>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <div class="status-file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span id="file-name">—</span>
+          </div>
+          <div class="status-meta">
+            <span class="badge badge-success" id="status-badge">Loaded</span>
+            <span id="row-count">0 cashiers</span>
+          </div>
+        </div>
+
+        <!-- ═══ Tables wrapper ═══ -->
+        <div class="tables-wrapper">
+
+          <!-- ── Left: Cashier table ── -->
+          <div class="card cashier-card">
+            <table class="cashier-table" id="cashier-table">
+              <thead>
+                <tr>
+                  <th class="col-name" rowspan="2">Name of Cashier</th>
+                  <th class="col-group receipts" colspan="2">RECEIPTS</th>
+                  <th class="col-group payments" colspan="2">PAYMENTS</th>
+                </tr>
+                <tr>
+                  <th class="col-amount receipts">Rs.</th>
+                  <th class="col-cts    receipts">Cts.</th>
+                  <th class="col-amount payments">Rs.</th>
+                  <th class="col-cts    payments">Cts.</th>
+                </tr>
+              </thead>
+              <tbody id="cashier-tbody">
+                <!-- Rows injected by JS -->
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>TOTAL</td>
+                  <td id="total-receipts-rs"   class="num">0</td>
+                  <td id="total-receipts-cts"  class="num cts">00</td>
+                  <td id="total-payments-rs"   class="num">0</td>
+                  <td id="total-payments-cts"  class="num cts">00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- ── Right: Summary table ── -->
+          <div class="card summary-card">
+            <table class="summary-table" id="summary-table">
+              <thead>
+                <tr>
+                  <th class="col-particulars">Particulars</th>
+                  <th class="col-amount">Rs.</th>
+                  <th class="col-cts">Cts.</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Balance Brought Forward</td>
+                  <td class="num" id="s-bbf-rs">0</td>
+                  <td class="num cts" id="s-bbf-cts">00</td>
+                </tr>
+                <tr>
+                  <td>Add &ndash; Receipts</td>
+                  <td class="num" id="s-receipts-rs">0</td>
+                  <td class="num cts" id="s-receipts-cts">00</td>
+                </tr>
+                <tr class="subtotal-row">
+                  <td><strong>Sub &ndash; Total</strong></td>
+                  <td class="num" id="s-subtotal-rs">0</td>
+                  <td class="num cts" id="s-subtotal-cts">00</td>
+                </tr>
+                <tr>
+                  <td>Less &ndash; Payments</td>
+                  <td class="num" id="s-payments-rs">0</td>
+                  <td class="num cts" id="s-payments-cts">00</td>
+                </tr>
+                <tr class="balance-row">
+                  <td><strong>Balance as at Date</strong></td>
+                  <td class="num" id="s-balance-rs">0</td>
+                  <td class="num cts" id="s-balance-cts">00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div><!-- /tables-wrapper -->
+      </div><!-- /report-panel -->
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>Cash Balance Checker &copy; <span id="year"></span></span>
+    </footer>
+
+  </div><!-- /app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
