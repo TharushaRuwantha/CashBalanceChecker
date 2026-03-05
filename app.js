@@ -76,49 +76,13 @@ function handleFileLoaded(fileName, rawText) {
 
   renderUnitConfig(units);
   renderRawTable(records);
-
-  // Aggregate detail rows (type=2) by teller number
-  // Deposits  = tlbf02 where currency is 100 or 105
-  // Withdrawals = tlbf16 where currency is 200
-  const tellerMap = {};
-  records
-    .filter(r => r.type === 2)
-    .forEach(r => {
-      if (!tellerMap[r.teller]) {
-        tellerMap[r.teller] = { teller: r.teller, deposits: 0, withdrawals: 0 };
-      }
-      if (r.currency === '100' || r.currency === '105') {
-        tellerMap[r.teller].deposits += r.tlbf02;
-      }
-      if (r.currency === '200') {
-        tellerMap[r.teller].withdrawals += r.tlbf16;
-      }
-    });
-
-  // Build cashier rows from aggregated teller data
-  const cashiers = Object.values(tellerMap).map(r => ({
-    name:        r.teller,
-    receiptsRs:  Math.floor(r.deposits / 100),
-    receiptsCts: r.deposits % 100,
-    paymentsRs:  Math.floor(r.withdrawals / 100),
-    paymentsCts: r.withdrawals % 100,
-  }));
-
-  // Pad to at least 9 rows
-  while (cashiers.length < 9) {
-    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0 });
-  }
-
-  renderCashierTable(cashiers);
+  buildAndRenderCashierTable(records);
   renderSummaryTable(grandTotal);
 
   // Show report, hide upload prompt
   uploadPrompt.hidden = true;
   reportPanel.hidden  = false;
-
-  const tellerCount = Object.keys(tellerMap).length;
-  rowCountEl.textContent = `${tellerCount} cashier${tellerCount !== 1 ? 's' : ''}`;
-  btnCalculate.disabled  = false;
+  btnCalculate.disabled = false;
 }
 
 /* ════════════════════════════════════════════════
@@ -222,8 +186,9 @@ function renderUnitConfig(units) {
       b.classList.toggle('active', b.dataset.type === type);
     });
 
-    // Re-render raw table so badge updates
+    // Re-render raw table (badge) and cashier table (grouping)
     renderRawTable(currentRecords);
+    buildAndRenderCashierTable(currentRecords);
   });
 }
 
@@ -260,6 +225,54 @@ function renderRawTable(records) {
 
     rawTbody.appendChild(tr);
   });
+}
+
+/* ════════════════════════════════════════════════
+   Build + Render — Cashier table
+   ════════════════════════════════════════════════
+   Branch units     → one row per individual teller
+   Service Center   → one aggregated row per unit,
+                      named after the unit code
+   ════════════════════════════════════════════════ */
+function buildAndRenderCashierTable(records) {
+  // Ordered map: key = display name (teller id OR unit code)
+  const cashierMap = {};
+
+  records
+    .filter(r => r.type === 2)
+    .forEach(r => {
+      // Service-center units collapse all their tellers into one row
+      const key = unitTypes[r.unit] === 'service-center' ? r.unit : r.teller;
+
+      if (!cashierMap[key]) {
+        cashierMap[key] = { name: key, deposits: 0, withdrawals: 0 };
+      }
+
+      if (r.currency === '100' || r.currency === '105') {
+        cashierMap[key].deposits += r.tlbf02;
+      }
+      if (r.currency === '200') {
+        cashierMap[key].withdrawals += r.tlbf16;
+      }
+    });
+
+  const cashiers = Object.values(cashierMap).map(r => ({
+    name:        r.name,
+    receiptsRs:  Math.floor(r.deposits / 100),
+    receiptsCts: r.deposits % 100,
+    paymentsRs:  Math.floor(r.withdrawals / 100),
+    paymentsCts: r.withdrawals % 100,
+  }));
+
+  const count = cashiers.length;
+  rowCountEl.textContent = `${count} cashier${count !== 1 ? 's' : ''}`;
+
+  // Pad to at least 9 rows for a full-looking form
+  while (cashiers.length < 9) {
+    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0 });
+  }
+
+  renderCashierTable(cashiers);
 }
 
 /* ════════════════════════════════════════════════
