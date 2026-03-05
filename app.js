@@ -77,7 +77,7 @@ function handleFileLoaded(fileName, rawText) {
   renderUnitConfig(units);
   renderRawTable(records);
   buildAndRenderCashierTable(records);
-  renderSummaryTable(grandTotal);
+  renderSummaryTable();   // reads totals from cashier table, not the file grand-total row
 
   // Show report, hide upload prompt
   uploadPrompt.hidden = true;
@@ -186,9 +186,11 @@ function renderUnitConfig(units) {
       b.classList.toggle('active', b.dataset.type === type);
     });
 
-    // Re-render raw table (badge) and cashier table (grouping)
+    // Re-render raw table (badge) and cashier table (grouping),
+    // then push the new totals into the summary table
     renderRawTable(currentRecords);
     buildAndRenderCashierTable(currentRecords);
+    updateSummaryFromCashierTotals();
   });
 }
 
@@ -317,24 +319,32 @@ function renderCashierTable(rows) {
 }
 
 /* ════════════════════════════════════════════════
-   Render — Summary table
+   Sync Summary receipts/payments from cashier totals
+   Called after cashier table is rebuilt, and also
+   whenever unit types are toggled.
    ════════════════════════════════════════════════ */
-function renderSummaryTable(grandTotal) {
-  const recRaw = grandTotal ? grandTotal.tlbf02 : 0;
-  const payRaw = grandTotal ? grandTotal.tlbf16 : 0;
-
-  const recRs  = Math.floor(recRaw / 100), recCts = recRaw % 100;
-  const payRs  = Math.floor(payRaw / 100), payCts = payRaw % 100;
+function updateSummaryFromCashierTotals() {
+  const recRs  = parseInt((document.getElementById('total-receipts-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const recCts = parseInt( document.getElementById('total-receipts-cts').textContent || '0', 10) || 0;
+  const payRs  = parseInt((document.getElementById('total-payments-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const payCts = parseInt( document.getElementById('total-payments-cts').textContent || '0', 10) || 0;
 
   setCell('s-receipts-rs',  fmt(recRs));
   setCell('s-receipts-cts', fmtCts(recCts));
   setCell('s-payments-rs',  fmt(payRs));
   setCell('s-payments-cts', fmtCts(payCts));
+  recalcSummary();
+}
 
-  // Seed BBF inputs with 0 on each new file load, then recalc
+/* ════════════════════════════════════════════════
+   Render — Summary table (called on new file load)
+   Resets BBF to 0 then syncs from cashier totals.
+   ════════════════════════════════════════════════ */
+function renderSummaryTable() {
+  // Seed BBF inputs with 0 on each new file load, then sync receipts/payments
   document.getElementById('s-bbf-rs').value  = 0;
   document.getElementById('s-bbf-cts').value = 0;
-  recalcSummary();
+  updateSummaryFromCashierTotals();
 }
 
 /* ════════════════════════════════════════════════
