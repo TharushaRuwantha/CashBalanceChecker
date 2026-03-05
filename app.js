@@ -168,7 +168,7 @@ function parseTextFile(lines) {
 function renderRawTable(records) {
   rawTbody.innerHTML = '';
 
-  records.forEach(rec => {
+  records.filter(rec => rec.teller !== '0').forEach(rec => {
     const tr = document.createElement('tr');
 
     // Row style based on type (used internally, not displayed as a column)
