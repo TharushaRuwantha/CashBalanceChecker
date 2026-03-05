@@ -78,24 +78,30 @@ function handleFileLoaded(fileName, rawText) {
   renderRawTable(records);
 
   // Aggregate detail rows (type=2) by teller number
+  // Deposits  = tlbf02 where currency is 100 or 105
+  // Withdrawals = tlbf16 where currency is 200
   const tellerMap = {};
   records
     .filter(r => r.type === 2)
     .forEach(r => {
       if (!tellerMap[r.teller]) {
-        tellerMap[r.teller] = { teller: r.teller, tlbf02: 0, tlbf16: 0 };
+        tellerMap[r.teller] = { teller: r.teller, deposits: 0, withdrawals: 0 };
       }
-      tellerMap[r.teller].tlbf02 += r.tlbf02;
-      tellerMap[r.teller].tlbf16 += r.tlbf16;
+      if (r.currency === '100' || r.currency === '105') {
+        tellerMap[r.teller].deposits += r.tlbf02;
+      }
+      if (r.currency === '200') {
+        tellerMap[r.teller].withdrawals += r.tlbf16;
+      }
     });
 
   // Build cashier rows from aggregated teller data
   const cashiers = Object.values(tellerMap).map(r => ({
     name:        r.teller,
-    receiptsRs:  Math.floor(r.tlbf02 / 100),
-    receiptsCts: r.tlbf02 % 100,
-    paymentsRs:  Math.floor(r.tlbf16 / 100),
-    paymentsCts: r.tlbf16 % 100,
+    receiptsRs:  Math.floor(r.deposits / 100),
+    receiptsCts: r.deposits % 100,
+    paymentsRs:  Math.floor(r.withdrawals / 100),
+    paymentsCts: r.withdrawals % 100,
   }));
 
   // Pad to at least 9 rows
