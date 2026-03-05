@@ -417,6 +417,116 @@ td, th { padding: .6rem .9rem; }
 }
 
 /* ═══════════════════════════════════════════════
+   Unit Configuration panel
+   ═══════════════════════════════════════════════ */
+.unit-config-card {
+  margin-bottom: var(--gap);
+}
+
+.unit-config-header {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--clr-border);
+  background: var(--clr-surface-2);
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+}
+
+.unit-config-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--clr-txt-muted);
+}
+
+.unit-config-hint {
+  font-size: .75rem;
+  color: var(--clr-txt-light);
+}
+
+.unit-config-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  padding: .9rem 1rem;
+}
+
+.unit-config-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: .4rem .75rem;
+}
+
+.unit-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--clr-primary);
+  min-width: 2.5rem;
+}
+
+.unit-toggle-group {
+  display: flex;
+  border: 1.5px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.unit-toggle-btn {
+  padding: .3rem .75rem;
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: var(--clr-surface);
+  color: var(--clr-txt-muted);
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+
+.unit-toggle-btn + .unit-toggle-btn {
+  border-left: 1.5px solid var(--clr-border);
+}
+
+.unit-toggle-btn:hover {
+  background: var(--clr-primary-lt);
+  color: var(--clr-primary);
+}
+
+.unit-toggle-btn.active {
+  background: var(--clr-primary);
+  color: #fff;
+}
+
+/* Unit type badge inside raw table cell */
+.unit-type-badge {
+  display: inline-block;
+  margin-left: .35rem;
+  padding: .1em .45em;
+  border-radius: 20px;
+  font-size: .68rem;
+  font-weight: 600;
+  vertical-align: middle;
+  font-family: var(--font-sans);
+}
+
+.unit-type-badge.branch {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.unit-type-badge.service-center {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* ═══════════════════════════════════════════════
    Raw Data table
    ═══════════════════════════════════════════════ */
 .raw-data-card {
