@@ -17,6 +17,10 @@ const btnPrint       = document.getElementById('btn-print');
 const yearEl         = document.getElementById('year');
 const reportDateEl   = document.getElementById('report-date');
 
+/* ── Unit type state: { 'B5': 'branch' | 'service-center', … } ── */
+let unitTypes    = {};
+let currentRecords = [];
+
 /* ── Footer year ── */
 yearEl.textContent = new Date().getFullYear();
 
@@ -57,7 +61,20 @@ function handleFileLoaded(fileName, rawText) {
 
   const { records, grandTotal } = parseTextFile(lines);
 
-  // Render raw data table
+  // Save records globally so unit-config changes can re-render the table
+  currentRecords = records;
+
+  // Detect unique control units (preserve file order)
+  const units = [...new Set(
+    records.filter(r => r.unit && r.unit !== '').map(r => r.unit)
+  )];
+
+  // Reset unit types for the new file (keep previous selections if unit still exists)
+  const prevTypes = unitTypes;
+  unitTypes = {};
+  units.forEach(u => { unitTypes[u] = prevTypes[u] || 'branch'; });
+
+  renderUnitConfig(units);
   renderRawTable(records);
 
   // Aggregate detail rows (type=2) by teller number
@@ -93,7 +110,8 @@ function handleFileLoaded(fileName, rawText) {
   uploadPrompt.hidden = true;
   reportPanel.hidden  = false;
 
-  rowCountEl.textContent = `${tellerRows.length} cashier${tellerRows.length !== 1 ? 's' : ''}`;
+  const tellerCount = Object.keys(tellerMap).length;
+  rowCountEl.textContent = `${tellerCount} cashier${tellerCount !== 1 ? 's' : ''}`;
   btnCalculate.disabled  = false;
 }
 
@@ -163,6 +181,47 @@ function parseTextFile(lines) {
 }
 
 /* ════════════════════════════════════════════════
+   Render — Unit Configuration panel
+   ════════════════════════════════════════════════ */
+function renderUnitConfig(units) {
+  const body = document.getElementById('unit-config-body');
+  body.innerHTML = '';
+
+  units.forEach(unit => {
+    const row = document.createElement('div');
+    row.className = 'unit-config-row';
+    row.innerHTML = `
+      <span class="unit-code">${escHtml(unit)}</span>
+      <div class="unit-toggle-group">
+        <button class="unit-toggle-btn ${unitTypes[unit] === 'branch' ? 'active' : ''}"
+                data-unit="${escHtml(unit)}" data-type="branch">Branch</button>
+        <button class="unit-toggle-btn ${unitTypes[unit] === 'service-center' ? 'active' : ''}"
+                data-unit="${escHtml(unit)}" data-type="service-center">Service Center</button>
+      </div>
+    `;
+    body.appendChild(row);
+  });
+
+  // Toggle click handler
+  body.addEventListener('click', (e) => {
+    const btn = e.target.closest('.unit-toggle-btn');
+    if (!btn) return;
+
+    const unit = btn.dataset.unit;
+    const type = btn.dataset.type;
+    unitTypes[unit] = type;
+
+    // Update active state for this unit's buttons
+    body.querySelectorAll(`.unit-toggle-btn[data-unit="${unit}"]`).forEach(b => {
+      b.classList.toggle('active', b.dataset.type === type);
+    });
+
+    // Re-render raw table so badge updates
+    renderRawTable(currentRecords);
+  });
+}
+
+/* ════════════════════════════════════════════════
    Render — Raw Data table
    ════════════════════════════════════════════════ */
 function renderRawTable(records) {
@@ -178,8 +237,13 @@ function renderRawTable(records) {
       tr.classList.add('raw-subtotal');
     }
 
+    const uType  = unitTypes[rec.unit];
+    const badge  = uType
+      ? `<span class="unit-type-badge ${uType}">${uType === 'branch' ? 'Branch' : 'Svc. Center'}</span>`
+      : '';
+
     tr.innerHTML = `
-      <td class="col-unit-cell">${escHtml(rec.unit)}</td>
+      <td class="col-unit-cell">${escHtml(rec.unit)}${badge}</td>
       <td class="col-teller-cell">${escHtml(rec.teller)}</td>
       <td class="col-currency-cell">${escHtml(rec.currency)}</td>
       <td class="num">${fmtBig(rec.tlbf01)}</td>
