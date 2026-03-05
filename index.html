@@ -181,10 +181,14 @@
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr class="bbf-row">
                   <td>Balance Brought Forward</td>
-                  <td class="num" id="s-bbf-rs">0</td>
-                  <td class="num cts" id="s-bbf-cts">00</td>
+                  <td class="num">
+                    <input type="number" id="s-bbf-rs"  class="bbf-input" value="0" min="0" />
+                  </td>
+                  <td class="num cts">
+                    <input type="number" id="s-bbf-cts" class="bbf-input bbf-cts" value="0" min="0" max="99" />
+                  </td>
                 </tr>
                 <tr>
                   <td>Add &ndash; Receipts</td>

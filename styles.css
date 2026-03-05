@@ -400,6 +400,32 @@ td, th { padding: .6rem .9rem; }
 .summary-table .col-amount      { width: 30%; }
 .summary-table .col-cts         { width: 15%; }
 
+/* ── BBF editable inputs ── */
+.bbf-row td { background: #fffbeb; }
+
+.bbf-input {
+  width: 100%;
+  border: 1.5px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: .2rem .4rem;
+  font-family: var(--font-mono);
+  font-size: .84rem;
+  text-align: right;
+  color: var(--clr-txt);
+  background: #fff;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  -moz-appearance: textfield;
+}
+.bbf-input::-webkit-inner-spin-button,
+.bbf-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.bbf-input:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(67,97,238,.12);
+}
+
+.bbf-cts { width: 3.5rem; }
+
 /* Sub-total row */
 .summary-table .subtotal-row td {
   background: var(--clr-subtotal);

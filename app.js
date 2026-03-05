@@ -320,32 +320,57 @@ function renderCashierTable(rows) {
    Render — Summary table
    ════════════════════════════════════════════════ */
 function renderSummaryTable(grandTotal) {
-  const bbfRaw  = grandTotal ? grandTotal.tlbf01 : 0;
-  const recRaw  = grandTotal ? grandTotal.tlbf02 : 0;
-  const payRaw  = grandTotal ? grandTotal.tlbf16 : 0;
+  const recRaw = grandTotal ? grandTotal.tlbf02 : 0;
+  const payRaw = grandTotal ? grandTotal.tlbf16 : 0;
 
-  const bbfRs   = Math.floor(bbfRaw / 100),  bbfCts  = bbfRaw  % 100;
-  const recRs   = Math.floor(recRaw / 100),  recCts  = recRaw  % 100;
-  const payRs   = Math.floor(payRaw / 100),  payCts  = payRaw  % 100;
+  const recRs  = Math.floor(recRaw / 100), recCts = recRaw % 100;
+  const payRs  = Math.floor(payRaw / 100), payCts = payRaw % 100;
 
-  const subRaw   = bbfRaw + recRaw;
-  const subRs    = Math.floor(subRaw / 100), subCts  = subRaw  % 100;
-
-  const balRaw   = subRaw - payRaw;
-  const balRs    = Math.floor(Math.abs(balRaw) / 100) * Math.sign(balRaw);
-  const balCts   = Math.abs(balRaw) % 100;
-
-  setCell('s-bbf-rs',       fmt(bbfRs));
-  setCell('s-bbf-cts',      fmtCts(bbfCts));
   setCell('s-receipts-rs',  fmt(recRs));
   setCell('s-receipts-cts', fmtCts(recCts));
-  setCell('s-subtotal-rs',  fmt(subRs));
-  setCell('s-subtotal-cts', fmtCts(subCts));
   setCell('s-payments-rs',  fmt(payRs));
   setCell('s-payments-cts', fmtCts(payCts));
+
+  // Seed BBF inputs with 0 on each new file load, then recalc
+  document.getElementById('s-bbf-rs').value  = 0;
+  document.getElementById('s-bbf-cts').value = 0;
+  recalcSummary();
+}
+
+/* ════════════════════════════════════════════════
+   Recalculate Sub-Total and Balance from BBF inputs
+   ════════════════════════════════════════════════ */
+function recalcSummary() {
+  const bbfRs  = parseInt(document.getElementById('s-bbf-rs').value,  10) || 0;
+  const bbfCts = parseInt(document.getElementById('s-bbf-cts').value, 10) || 0;
+
+  // Read receipts and payments from their display cells
+  const recRs  = parseInt((document.getElementById('s-receipts-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const recCts = parseInt( document.getElementById('s-receipts-cts').textContent || '0', 10) || 0;
+  const payRs  = parseInt((document.getElementById('s-payments-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const payCts = parseInt( document.getElementById('s-payments-cts').textContent || '0', 10) || 0;
+
+  const bbfRaw = bbfRs  * 100 + bbfCts;
+  const recRaw = recRs  * 100 + recCts;
+  const payRaw = payRs  * 100 + payCts;
+
+  const subRaw = bbfRaw + recRaw;
+  const subRs  = Math.floor(subRaw / 100);
+  const subCts = subRaw % 100;
+
+  const balRaw = subRaw - payRaw;
+  const balRs  = Math.floor(Math.abs(balRaw) / 100) * (balRaw < 0 ? -1 : 1);
+  const balCts = Math.abs(balRaw) % 100;
+
+  setCell('s-subtotal-rs',  fmt(subRs));
+  setCell('s-subtotal-cts', fmtCts(subCts));
   setCell('s-balance-rs',   fmt(balRs));
   setCell('s-balance-cts',  fmtCts(balCts));
 }
+
+/* ── Wire BBF inputs to live-recalc ── */
+document.getElementById('s-bbf-rs').addEventListener('input',  recalcSummary);
+document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
 
 /* ════════════════════════════════════════════════
    Calculate button
