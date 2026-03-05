@@ -1,6 +1,5 @@
 /* ═══════════════════════════════════════════════
    Cash Balance Checker — app.js
-   Structure / file-reader scaffold (logic TBD)
    ═══════════════════════════════════════════════ */
 
 'use strict';
@@ -12,6 +11,7 @@ const reportPanel    = document.getElementById('report-panel');
 const fileNameEl     = document.getElementById('file-name');
 const rowCountEl     = document.getElementById('row-count');
 const cashierTbody   = document.getElementById('cashier-tbody');
+const rawTbody       = document.getElementById('raw-tbody');
 const btnCalculate   = document.getElementById('btn-calculate');
 const btnPrint       = document.getElementById('btn-print');
 const yearEl         = document.getElementById('year');
@@ -47,74 +47,124 @@ fileInput.addEventListener('change', (e) => {
 /* ════════════════════════════════════════════════
    Handle loaded file content
    ════════════════════════════════════════════════ */
-/**
- * Called once the FileReader has finished.
- * @param {string} fileName
- * @param {string} rawText  — raw .txt contents
- */
 function handleFileLoaded(fileName, rawText) {
-  // Update status bar
   fileNameEl.textContent = fileName;
 
-  // TODO: Parse rawText into cashier records.
-  //       For now, generate placeholder rows from the raw lines.
   const lines = rawText
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
-  // Build placeholder cashier rows (structure only)
-  const cashiers = parsePlaceholder(lines);
+  const { records, grandTotal } = parseTextFile(lines);
 
-  // Render tables
+  // Render raw data table
+  renderRawTable(records);
+
+  // Teller subtotals (type=1) excluding the dummy grand-total teller (teller=0)
+  const tellerRows = records.filter(r => r.type === 1 && r.teller !== '0');
+
+  // Build cashier rows
+  const cashiers = tellerRows.map(r => {
+    const recRaw = r.tlbf02;
+    const payRaw = r.tlbf16;
+    return {
+      name:        r.teller,
+      receiptsRs:  Math.floor(recRaw / 100),
+      receiptsCts: recRaw % 100,
+      paymentsRs:  Math.floor(payRaw / 100),
+      paymentsCts: payRaw % 100,
+    };
+  });
+
+  // Pad to at least 9 rows
+  while (cashiers.length < 9) {
+    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0 });
+  }
+
   renderCashierTable(cashiers);
-  renderSummaryTable(cashiers);
+  renderSummaryTable(grandTotal);
 
   // Show report, hide upload prompt
   uploadPrompt.hidden = true;
   reportPanel.hidden  = false;
 
-  // Update status meta
-  rowCountEl.textContent = `${cashiers.length} cashier${cashiers.length !== 1 ? 's' : ''}`;
+  rowCountEl.textContent = `${tellerRows.length} cashier${tellerRows.length !== 1 ? 's' : ''}`;
   btnCalculate.disabled  = false;
 }
 
 /* ════════════════════════════════════════════════
-   Placeholder parser  (replace with real logic)
+   Parser — reads the fixed-column .txt format
+   ════════════════════════════════════════════════
+   File columns (space-separated):
+     [0] type     — 2=detail, 1=teller subtotal, 0=grand total
+     [1] teller   — teller number
+     [2] currency — 100 / 200 / 105 / 0
+     [3] tlbf01
+     [4] tlbf02
+     [5] tlbf15
+     [6] tlbf16
    ════════════════════════════════════════════════ */
-/**
- * Temporary: treat each non-empty line as a cashier name with zero values.
- * Real implementation will parse structured columns from the .txt format.
- * @param {string[]} lines
- * @returns {CashierRow[]}
- */
-function parsePlaceholder(lines) {
-  // Minimum of 9 display rows (matching the original form layout)
-  const MIN_ROWS = 9;
+function parseTextFile(lines) {
+  const records = [];
+  let grandTotal = null;
 
-  const cashiers = lines.map((line, idx) => ({
-    name:        line,
-    receiptsRs:  0,
-    receiptsCts: 0,
-    paymentsRs:  0,
-    paymentsCts: 0,
-  }));
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 7) return;
 
-  // Pad with empty rows so the table always shows at least MIN_ROWS
-  while (cashiers.length < MIN_ROWS) {
-    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0 });
-  }
+    const record = {
+      type:     parseInt(parts[0], 10),
+      teller:   parts[1],
+      currency: parts[2],
+      tlbf01:   parseInt(parts[3], 10) || 0,
+      tlbf02:   parseInt(parts[4], 10) || 0,
+      tlbf15:   parseInt(parts[5], 10) || 0,
+      tlbf16:   parseInt(parts[6], 10) || 0,
+    };
 
-  return cashiers;
+    records.push(record);
+
+    if (record.type === 0) {
+      grandTotal = record;
+    }
+  });
+
+  return { records, grandTotal };
+}
+
+/* ════════════════════════════════════════════════
+   Render — Raw Data table
+   ════════════════════════════════════════════════ */
+function renderRawTable(records) {
+  rawTbody.innerHTML = '';
+
+  records.forEach(rec => {
+    const tr = document.createElement('tr');
+
+    // Row style based on type
+    if (rec.type === 0) {
+      tr.classList.add('raw-grand-total');
+    } else if (rec.type === 1) {
+      tr.classList.add('raw-subtotal');
+    }
+
+    tr.innerHTML = `
+      <td class="col-type-cell type-${rec.type}">${rec.type}</td>
+      <td class="col-teller-cell">${escHtml(rec.teller)}</td>
+      <td class="col-currency-cell">${escHtml(rec.currency)}</td>
+      <td class="num">${fmtBig(rec.tlbf01)}</td>
+      <td class="num">${fmtBig(rec.tlbf02)}</td>
+      <td class="num">${fmtBig(rec.tlbf15)}</td>
+      <td class="num">${fmtBig(rec.tlbf16)}</td>
+    `;
+
+    rawTbody.appendChild(tr);
+  });
 }
 
 /* ════════════════════════════════════════════════
    Render — Cashier table
    ════════════════════════════════════════════════ */
-/**
- * @typedef {{ name:string, receiptsRs:number, receiptsCts:number, paymentsRs:number, paymentsCts:number }} CashierRow
- * @param {CashierRow[]} rows
- */
 function renderCashierTable(rows) {
   cashierTbody.innerHTML = '';
 
@@ -135,14 +185,18 @@ function renderCashierTable(rows) {
 
     cashierTbody.appendChild(tr);
 
-    // Accumulate totals (logic placeholder — real math TBD)
     totalRecRs  += row.receiptsRs;
     totalRecCts += row.receiptsCts;
     totalPayRs  += row.paymentsRs;
     totalPayCts += row.paymentsCts;
   });
 
-  // Footer totals
+  // Carry-over cents into Rs
+  totalRecRs  += Math.floor(totalRecCts / 100);
+  totalRecCts  = totalRecCts % 100;
+  totalPayRs  += Math.floor(totalPayCts / 100);
+  totalPayCts  = totalPayCts % 100;
+
   setCell('total-receipts-rs',  fmt(totalRecRs));
   setCell('total-receipts-cts', fmtCts(totalRecCts));
   setCell('total-payments-rs',  fmt(totalPayRs));
@@ -152,45 +206,39 @@ function renderCashierTable(rows) {
 /* ════════════════════════════════════════════════
    Render — Summary table
    ════════════════════════════════════════════════ */
-/**
- * @param {CashierRow[]} rows
- */
-function renderSummaryTable(rows) {
-  // TODO: Replace with real balance-brought-forward value from parsed data
-  const bbfRs   = 0;
-  const bbfCts  = 0;
+function renderSummaryTable(grandTotal) {
+  const bbfRaw  = grandTotal ? grandTotal.tlbf01 : 0;
+  const recRaw  = grandTotal ? grandTotal.tlbf02 : 0;
+  const payRaw  = grandTotal ? grandTotal.tlbf16 : 0;
 
-  const totalRecRs  = rows.reduce((s, r) => s + r.receiptsRs,  0);
-  const totalRecCts = rows.reduce((s, r) => s + r.receiptsCts, 0);
-  const totalPayRs  = rows.reduce((s, r) => s + r.paymentsRs,  0);
-  const totalPayCts = rows.reduce((s, r) => s + r.paymentsCts, 0);
+  const bbfRs   = Math.floor(bbfRaw / 100),  bbfCts  = bbfRaw  % 100;
+  const recRs   = Math.floor(recRaw / 100),  recCts  = recRaw  % 100;
+  const payRs   = Math.floor(payRaw / 100),  payCts  = payRaw  % 100;
 
-  // Sub-total = BBF + Receipts  (cents carry-over logic TBD)
-  const subTotalRs  = bbfRs  + totalRecRs;
-  const subTotalCts = bbfCts + totalRecCts;
+  const subRaw   = bbfRaw + recRaw;
+  const subRs    = Math.floor(subRaw / 100), subCts  = subRaw  % 100;
 
-  // Balance = Sub-total - Payments  (carry-over logic TBD)
-  const balRs  = subTotalRs  - totalPayRs;
-  const balCts = subTotalCts - totalPayCts;
+  const balRaw   = subRaw - payRaw;
+  const balRs    = Math.floor(Math.abs(balRaw) / 100) * Math.sign(balRaw);
+  const balCts   = Math.abs(balRaw) % 100;
 
   setCell('s-bbf-rs',       fmt(bbfRs));
   setCell('s-bbf-cts',      fmtCts(bbfCts));
-  setCell('s-receipts-rs',  fmt(totalRecRs));
-  setCell('s-receipts-cts', fmtCts(totalRecCts));
-  setCell('s-subtotal-rs',  fmt(subTotalRs));
-  setCell('s-subtotal-cts', fmtCts(subTotalCts));
-  setCell('s-payments-rs',  fmt(totalPayRs));
-  setCell('s-payments-cts', fmtCts(totalPayCts));
+  setCell('s-receipts-rs',  fmt(recRs));
+  setCell('s-receipts-cts', fmtCts(recCts));
+  setCell('s-subtotal-rs',  fmt(subRs));
+  setCell('s-subtotal-cts', fmtCts(subCts));
+  setCell('s-payments-rs',  fmt(payRs));
+  setCell('s-payments-cts', fmtCts(payCts));
   setCell('s-balance-rs',   fmt(balRs));
   setCell('s-balance-cts',  fmtCts(balCts));
 }
 
 /* ════════════════════════════════════════════════
-   Calculate button  (logic stub)
+   Calculate button
    ════════════════════════════════════════════════ */
 btnCalculate.addEventListener('click', () => {
-  // TODO: Trigger full calculation pass when logic is implemented.
-  console.log('Calculate clicked — logic pending implementation.');
+  console.log('Calculate clicked.');
 });
 
 /* ════════════════════════════════════════════════
@@ -204,6 +252,12 @@ btnPrint.addEventListener('click', () => window.print());
 
 /** Format integer with comma-thousands */
 function fmt(n) {
+  return Number(n).toLocaleString('en-US');
+}
+
+/** Format a large raw integer with comma-thousands */
+function fmtBig(n) {
+  if (n === 0) return '0';
   return Number(n).toLocaleString('en-US');
 }
 
