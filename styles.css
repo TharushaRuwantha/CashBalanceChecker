@@ -456,11 +456,18 @@ td, th { padding: .6rem .9rem; }
   white-space: nowrap;
 }
 
-.raw-table .col-type-cell {
+.raw-table .col-unit-cell {
   text-align: center;
-  font-weight: 600;
-  font-size: .75rem;
-  width: 50px;
+  font-weight: 700;
+  font-size: .8rem;
+  width: 80px;
+  color: var(--clr-primary);
+  font-family: var(--font-mono);
+}
+
+/* Grand-total row has no unit — show a dash */
+.raw-table tbody tr.raw-grand-total .col-unit-cell {
+  color: var(--clr-txt-light);
 }
 
 .raw-table .col-teller-cell {
@@ -472,11 +479,6 @@ td, th { padding: .6rem .9rem; }
   text-align: center;
   font-weight: 600;
 }
-
-/* Type badge colours */
-.raw-table .type-2 { color: var(--clr-txt-muted); }
-.raw-table .type-1 { color: var(--clr-primary); }
-.raw-table .type-0 { color: #b71c1c; }
 
 /* Row highlight by type */
 .raw-table tbody tr.raw-subtotal {

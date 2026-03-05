@@ -60,21 +60,26 @@ function handleFileLoaded(fileName, rawText) {
   // Render raw data table
   renderRawTable(records);
 
-  // Teller subtotals (type=1) excluding the dummy grand-total teller (teller=0)
-  const tellerRows = records.filter(r => r.type === 1 && r.teller !== '0');
+  // Aggregate detail rows (type=2) by teller number
+  const tellerMap = {};
+  records
+    .filter(r => r.type === 2)
+    .forEach(r => {
+      if (!tellerMap[r.teller]) {
+        tellerMap[r.teller] = { teller: r.teller, tlbf02: 0, tlbf16: 0 };
+      }
+      tellerMap[r.teller].tlbf02 += r.tlbf02;
+      tellerMap[r.teller].tlbf16 += r.tlbf16;
+    });
 
-  // Build cashier rows
-  const cashiers = tellerRows.map(r => {
-    const recRaw = r.tlbf02;
-    const payRaw = r.tlbf16;
-    return {
-      name:        r.teller,
-      receiptsRs:  Math.floor(recRaw / 100),
-      receiptsCts: recRaw % 100,
-      paymentsRs:  Math.floor(payRaw / 100),
-      paymentsCts: payRaw % 100,
-    };
-  });
+  // Build cashier rows from aggregated teller data
+  const cashiers = Object.values(tellerMap).map(r => ({
+    name:        r.teller,
+    receiptsRs:  Math.floor(r.tlbf02 / 100),
+    receiptsCts: r.tlbf02 % 100,
+    paymentsRs:  Math.floor(r.tlbf16 / 100),
+    paymentsCts: r.tlbf16 % 100,
+  }));
 
   // Pad to at least 9 rows
   while (cashiers.length < 9) {
@@ -95,14 +100,21 @@ function handleFileLoaded(fileName, rawText) {
 /* ════════════════════════════════════════════════
    Parser — reads the fixed-column .txt format
    ════════════════════════════════════════════════
-   File columns (space-separated):
-     [0] type     — 2=detail, 1=teller subtotal, 0=grand total
-     [1] teller   — teller number
-     [2] currency — 100 / 200 / 105 / 0
-     [3] tlbf01
-     [4] tlbf02
-     [5] tlbf15
-     [6] tlbf16
+   Detail / subtotal rows (8 parts):
+     [0] type        — 2=detail, 1=control-unit subtotal
+     [1] unit        — control unit (e.g. B5, J5)
+     [2] teller      — teller number (0 for subtotals)
+     [3] currency    — 100 / 200 / 105 / 0
+     [4] tlbf01
+     [5] tlbf02
+     [6] tlbf15
+     [7] tlbf16
+
+   Grand-total row (7 parts, type=0, no unit column):
+     [0] type=0
+     [1] teller=0
+     [2] currency=0
+     [3..6] tlbf01..tlbf16
    ════════════════════════════════════════════════ */
 function parseTextFile(lines) {
   const records = [];
@@ -112,15 +124,33 @@ function parseTextFile(lines) {
     const parts = line.trim().split(/\s+/);
     if (parts.length < 7) return;
 
-    const record = {
-      type:     parseInt(parts[0], 10),
-      teller:   parts[1],
-      currency: parts[2],
-      tlbf01:   parseInt(parts[3], 10) || 0,
-      tlbf02:   parseInt(parts[4], 10) || 0,
-      tlbf15:   parseInt(parts[5], 10) || 0,
-      tlbf16:   parseInt(parts[6], 10) || 0,
-    };
+    let record;
+
+    if (parts.length >= 8) {
+      // Detail or control-unit subtotal row — has unit column
+      record = {
+        type:     parseInt(parts[0], 10),
+        unit:     parts[1],
+        teller:   parts[2],
+        currency: parts[3],
+        tlbf01:   parseInt(parts[4], 10) || 0,
+        tlbf02:   parseInt(parts[5], 10) || 0,
+        tlbf15:   parseInt(parts[6], 10) || 0,
+        tlbf16:   parseInt(parts[7], 10) || 0,
+      };
+    } else {
+      // Grand-total row (type=0) — no unit column
+      record = {
+        type:     parseInt(parts[0], 10),
+        unit:     '',
+        teller:   parts[1],
+        currency: parts[2],
+        tlbf01:   parseInt(parts[3], 10) || 0,
+        tlbf02:   parseInt(parts[4], 10) || 0,
+        tlbf15:   parseInt(parts[5], 10) || 0,
+        tlbf16:   parseInt(parts[6], 10) || 0,
+      };
+    }
 
     records.push(record);
 
@@ -141,7 +171,7 @@ function renderRawTable(records) {
   records.forEach(rec => {
     const tr = document.createElement('tr');
 
-    // Row style based on type
+    // Row style based on type (used internally, not displayed as a column)
     if (rec.type === 0) {
       tr.classList.add('raw-grand-total');
     } else if (rec.type === 1) {
@@ -149,7 +179,7 @@ function renderRawTable(records) {
     }
 
     tr.innerHTML = `
-      <td class="col-type-cell type-${rec.type}">${rec.type}</td>
+      <td class="col-unit-cell">${escHtml(rec.unit)}</td>
       <td class="col-teller-cell">${escHtml(rec.teller)}</td>
       <td class="col-currency-cell">${escHtml(rec.currency)}</td>
       <td class="num">${fmtBig(rec.tlbf01)}</td>
