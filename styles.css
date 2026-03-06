@@ -773,3 +773,16 @@ td, th { padding: .6rem .9rem; }
 
 /* Footer buttons */
 .adj-footer { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Cashier table — cells with right-click adjustment */
+[data-adjkey] { cursor: context-menu; }
+[data-adjkey]:hover { background: rgba(67, 97, 238, 0.05); }
+
+/* Small dot in name cell indicating an active adjustment */
+.teller-adj-dot {
+  color: var(--clr-primary);
+  font-size: 0.5em;
+  margin-left: 5px;
+  vertical-align: middle;
+  opacity: 0.7;
+}
