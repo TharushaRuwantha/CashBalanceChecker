@@ -956,6 +956,7 @@ td, th { padding: .6rem .9rem; }
 }
 .tally-table .col-teller-id { width: 130px; }
 .tally-table .col-status    { width: 110px; text-align: center; }
+.tally-table .col-sum       { background: #fef9c3; color: #78350f; font-weight: 600; }
 
 /* Row highlight by result */
 .tally-row-match   { background: #f0fdf4; }
