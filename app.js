@@ -24,6 +24,7 @@ let currentRecords = [];
 /* ── Adjustment state (in paise/cents, reset on new file) ── */
 let receiptsAdjRaw = 0;
 let paymentsAdjRaw = 0;
+let tellerAdjMap   = {};   // { [tellerKey]: { receipts: 0, payments: 0 } }
 
 /* ── Footer year ── */
 yearEl.textContent = new Date().getFullYear();
@@ -262,20 +263,27 @@ function buildAndRenderCashierTable(records) {
       }
     });
 
-  const cashiers = Object.values(cashierMap).map(r => ({
-    name:        r.name,
-    receiptsRs:  Math.floor(r.deposits / 100),
-    receiptsCts: r.deposits % 100,
-    paymentsRs:  Math.floor(r.withdrawals / 100),
-    paymentsCts: r.withdrawals % 100,
-  }));
+  const cashiers = Object.values(cashierMap).map(r => {
+    const adj    = tellerAdjMap[r.name] || { receipts: 0, payments: 0 };
+    const totDep = r.deposits    + adj.receipts;
+    const totWit = r.withdrawals + adj.payments;
+    return {
+      name:        r.name,
+      receiptsRs:  Math.floor(Math.abs(totDep) / 100) * (totDep < 0 ? -1 : 1),
+      receiptsCts: Math.abs(totDep) % 100,
+      paymentsRs:  Math.floor(Math.abs(totWit) / 100) * (totWit < 0 ? -1 : 1),
+      paymentsCts: Math.abs(totWit) % 100,
+      receiptsAdj: adj.receipts,
+      paymentsAdj: adj.payments,
+    };
+  });
 
   const count = cashiers.length;
   rowCountEl.textContent = `${count} cashier${count !== 1 ? 's' : ''}`;
 
   // Pad to at least 9 rows for a full-looking form
   while (cashiers.length < 9) {
-    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0 });
+    cashiers.push({ name: '', receiptsRs: 0, receiptsCts: 0, paymentsRs: 0, paymentsCts: 0, receiptsAdj: 0, paymentsAdj: 0 });
   }
 
   renderCashierTable(cashiers);
@@ -294,11 +302,15 @@ function renderCashierTable(rows) {
     const tr = document.createElement('tr');
     if (!row.name) tr.classList.add('empty-row');
 
+    const recAdj = row.name ? ` data-adjkey="${escHtml(row.name)}" data-adjcol="receipts" title="Right-click to adjust"` : '';
+    const payAdj = row.name ? ` data-adjkey="${escHtml(row.name)}" data-adjcol="payments" title="Right-click to adjust"` : '';
+    const adjDot = (row.receiptsAdj || row.paymentsAdj) ? '<span class="teller-adj-dot">&#x25CF;</span>' : '';
+
     tr.innerHTML = `
-      <td>${escHtml(row.name)}</td>
-      <td class="num receipts-rs">${fmt(row.receiptsRs)}</td>
+      <td>${escHtml(row.name)}${adjDot}</td>
+      <td class="num receipts-rs"${recAdj}>${fmt(row.receiptsRs)}</td>
       <td class="num cts receipts-cts">${fmtCts(row.receiptsCts)}</td>
-      <td class="num payments-rs">${fmt(row.paymentsRs)}</td>
+      <td class="num payments-rs"${payAdj}>${fmt(row.paymentsRs)}</td>
       <td class="num cts payments-cts">${fmtCts(row.paymentsCts)}</td>
     `;
 
@@ -370,9 +382,10 @@ function updateAdjBadge(id, adjRaw) {
    Resets BBF to 0 then syncs from cashier totals.
    ════════════════════════════════════════════════ */
 function renderSummaryTable() {
-  // Reset adjustments and BBF on each new file load
+  // Reset all adjustments and BBF on each new file load
   receiptsAdjRaw = 0;
   paymentsAdjRaw = 0;
+  tellerAdjMap   = {};
   document.getElementById('s-bbf-rs').value  = 0;
   document.getElementById('s-bbf-cts').value = 0;
   updateSummaryFromCashierTotals();
@@ -415,31 +428,36 @@ document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
 
 /* ════════════════════════════════════════════════
    Adjustment right-click context menu
+   Works for both the summary table rows and
+   individual teller/unit rows in the cashier table.
    ════════════════════════════════════════════════ */
 (function () {
-  const menu       = document.getElementById('adj-menu');
-  const menuTitle  = document.getElementById('adj-menu-title');
-  const btnPlus    = document.getElementById('adj-btn-plus');
-  const btnMinus   = document.getElementById('adj-btn-minus');
-  const rsInput    = document.getElementById('adj-rs');
-  const ctsInput   = document.getElementById('adj-cts');
-  const applyBtn   = document.getElementById('adj-apply');
-  const cancelBtn  = document.getElementById('adj-cancel');
-  const closeBtn   = document.getElementById('adj-close');
+  const menu      = document.getElementById('adj-menu');
+  const menuTitle = document.getElementById('adj-menu-title');
+  const btnPlus   = document.getElementById('adj-btn-plus');
+  const btnMinus  = document.getElementById('adj-btn-minus');
+  const rsInput   = document.getElementById('adj-rs');
+  const ctsInput  = document.getElementById('adj-cts');
+  const applyBtn  = document.getElementById('adj-apply');
+  const cancelBtn = document.getElementById('adj-cancel');
+  const closeBtn  = document.getElementById('adj-close');
 
-  let adjTarget = null;  // 'receipts' | 'payments'
-  let adjSign   = 1;     // +1 | -1
+  let adjTarget  = null;  // 'receipts' | 'payments'
+  let adjSign    = 1;     // +1 | -1
+  let adjContext = null;  // 'summary' | 'teller'
+  let adjKey     = null;  // teller/unit key when context === 'teller'
 
-  function openMenu(target, clientX, clientY) {
-    adjTarget = target;
-    adjSign   = 1;
+  function openMenu(target, context, key, clientX, clientY) {
+    adjTarget  = target;
+    adjContext = context;
+    adjKey     = key;
+    adjSign    = 1;
     menuTitle.textContent = target === 'receipts' ? 'Adjust Receipts' : 'Adjust Payments';
     btnPlus.classList.add('active');
     btnMinus.classList.remove('active');
     rsInput.value  = '';
     ctsInput.value = '';
 
-    // Show first so we can measure dimensions
     menu.hidden = false;
     const mw = menu.offsetWidth, mh = menu.offsetHeight;
     let x = clientX + 6, y = clientY + 6;
@@ -452,19 +470,25 @@ document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
 
   function closeMenu() { menu.hidden = true; }
 
-  // Right-click on Receipts row
+  // ── Summary table rows ──
   document.getElementById('s-receipts-row').addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    openMenu('receipts', e.clientX, e.clientY);
+    openMenu('receipts', 'summary', null, e.clientX, e.clientY);
   });
-
-  // Right-click on Payments row
   document.getElementById('s-payments-row').addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    openMenu('payments', e.clientX, e.clientY);
+    openMenu('payments', 'summary', null, e.clientX, e.clientY);
   });
 
-  // Sign toggle
+  // ── Cashier table — event delegation on cells with data-adjkey ──
+  cashierTbody.addEventListener('contextmenu', (e) => {
+    const cell = e.target.closest('[data-adjkey]');
+    if (!cell) return;
+    e.preventDefault();
+    openMenu(cell.dataset.adjcol, 'teller', cell.dataset.adjkey, e.clientX, e.clientY);
+  });
+
+  // ── Sign toggle ──
   btnPlus.addEventListener('click', () => {
     adjSign = 1;
     btnPlus.classList.add('active');
@@ -476,18 +500,27 @@ document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
     btnPlus.classList.remove('active');
   });
 
-  // Apply adjustment
+  // ── Apply ──
   applyBtn.addEventListener('click', () => {
-    const rs  = parseInt(rsInput.value,  10) || 0;
-    const cts = Math.min(99, parseInt(ctsInput.value, 10) || 0);
+    const rs    = parseInt(rsInput.value,  10) || 0;
+    const cts   = Math.min(99, parseInt(ctsInput.value, 10) || 0);
     const delta = adjSign * (rs * 100 + cts);
-    if (adjTarget === 'receipts') receiptsAdjRaw += delta;
-    else                          paymentsAdjRaw += delta;
-    closeMenu();
-    updateSummaryFromCashierTotals();
+
+    if (adjContext === 'summary') {
+      if (adjTarget === 'receipts') receiptsAdjRaw += delta;
+      else                          paymentsAdjRaw += delta;
+      closeMenu();
+      updateSummaryFromCashierTotals();
+    } else if (adjContext === 'teller') {
+      if (!tellerAdjMap[adjKey]) tellerAdjMap[adjKey] = { receipts: 0, payments: 0 };
+      tellerAdjMap[adjKey][adjTarget] += delta;
+      closeMenu();
+      buildAndRenderCashierTable(currentRecords);
+      updateSummaryFromCashierTotals();
+    }
   });
 
-  // Allow Enter key to apply
+  // Enter key confirms
   [rsInput, ctsInput].forEach(inp => {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyBtn.click(); });
   });
