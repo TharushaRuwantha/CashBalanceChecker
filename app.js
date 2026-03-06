@@ -21,6 +21,12 @@ const reportDateEl   = document.getElementById('report-date');
 let unitTypes    = {};
 let currentRecords = [];
 
+/* ── Raw cashier data from file 1 (paise) for tally ── */
+let currentCashierRawMap = {};  // { tellerId: { depositsRaw, withdrawalsRaw } }
+
+/* ── Second file state ── */
+let currentFile2Balances = {};  // { tellerId: { cashInRaw, cashOutRaw } }
+
 /* ── Adjustment state (in paise/cents, reset on new file) ── */
 let receiptsAdjRaw = 0;
 let paymentsAdjRaw = 0;
@@ -88,6 +94,12 @@ function handleFileLoaded(fileName, rawText) {
   uploadPrompt.hidden = true;
   reportPanel.hidden  = false;
   btnCalculate.disabled = false;
+
+  // Reveal second-file section; reset its state for the new file
+  document.getElementById('second-doc-section').hidden = false;
+  document.getElementById('second-upload-wrap').hidden = false;
+  document.getElementById('teller-panel').hidden = true;
+  currentFile2Balances = {};
 }
 
 /* ════════════════════════════════════════════════
@@ -262,6 +274,15 @@ function buildAndRenderCashierTable(records) {
         cashierMap[key].withdrawals += r.tlbf16;
       }
     });
+
+  // Store raw paise values for later tally comparison with file 2
+  currentCashierRawMap = {};
+  Object.entries(cashierMap).forEach(([key, data]) => {
+    currentCashierRawMap[key] = {
+      depositsRaw:    data.deposits,
+      withdrawalsRaw: data.withdrawals,
+    };
+  });
 
   const cashiers = Object.values(cashierMap).map(r => {
     const adj    = tellerAdjMap[r.name] || { receipts: 0, payments: 0 };
@@ -585,4 +606,232 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ════════════════════════════════════════════════
+   Second file — upload handler
+   ════════════════════════════════════════════════ */
+document.getElementById('file-input-2').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload  = (ev) => handleSecondFileLoaded(file.name, ev.target.result);
+  reader.onerror = () => alert('Error reading file. Please try again.');
+  reader.readAsText(file);
+});
+
+function handleSecondFileLoaded(fileName, rawText) {
+  const lines = rawText
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  const transactions = parseSecondFile(lines);
+  const balances     = buildTellerBalances(transactions);
+  currentFile2Balances = balances;
+
+  document.getElementById('file2-name').textContent = fileName;
+  document.getElementById('second-upload-wrap').hidden = true;
+  document.getElementById('teller-panel').hidden = false;
+
+  renderTellerBalanceTable(balances);
+  renderTallyTable(balances);
+}
+
+/* ════════════════════════════════════════════════
+   Parser — second file
+   Format (no header row when submitted):
+     [0] controlUnit   e.g. B5
+     [1] cashIn        teller id that received cash
+     [2] cashOut       teller id that gave out cash
+     [3] code          transaction code
+     [4] ref           reference
+     [5] amount        in paise
+   ════════════════════════════════════════════════ */
+function parseSecondFile(lines) {
+  const transactions = [];
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 6) return;
+
+    // Skip any header row (amount column would not be a number)
+    const amount = parseInt(parts[5], 10);
+    if (isNaN(amount)) return;
+
+    transactions.push({
+      controlUnit: parts[0],
+      cashIn:      parts[1],
+      cashOut:     parts[2],
+      code:        parts[3],
+      ref:         parts[4],
+      amount,
+    });
+  });
+  return transactions;
+}
+
+/* ════════════════════════════════════════════════
+   Build teller balances from second file
+   ════════════════════════════════════════════════ */
+function buildTellerBalances(transactions) {
+  const balances = {};
+
+  transactions.forEach(t => {
+    if (!balances[t.cashIn])  balances[t.cashIn]  = { cashInRaw: 0, cashOutRaw: 0 };
+    if (!balances[t.cashOut]) balances[t.cashOut] = { cashInRaw: 0, cashOutRaw: 0 };
+
+    balances[t.cashIn].cashInRaw   += t.amount;
+    balances[t.cashOut].cashOutRaw += t.amount;
+  });
+
+  return balances;
+}
+
+/* ════════════════════════════════════════════════
+   Render — Teller-wise Balance table (file 2)
+   ════════════════════════════════════════════════ */
+function renderTellerBalanceTable(balances) {
+  const tbody = document.getElementById('teller-tbody');
+  tbody.innerHTML = '';
+
+  let totInRaw = 0, totOutRaw = 0;
+
+  const sorted = Object.entries(balances).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+
+  sorted.forEach(([teller, data]) => {
+    const netRaw = data.cashInRaw - data.cashOutRaw;
+    totInRaw  += data.cashInRaw;
+    totOutRaw += data.cashOutRaw;
+
+    const sp = (raw) => splitPaise(raw);
+    const inSp  = sp(data.cashInRaw);
+    const outSp = sp(data.cashOutRaw);
+    const netSp = sp(netRaw);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(teller)}</td>
+      <td class="num receipts-rs">${fmt(inSp.rs)}</td>
+      <td class="num cts receipts-cts">${fmtCts(inSp.cts)}</td>
+      <td class="num payments-rs">${fmt(outSp.rs)}</td>
+      <td class="num cts payments-cts">${fmtCts(outSp.cts)}</td>
+      <td class="num net-cell ${netRaw < 0 ? 'neg-balance' : ''}">${fmt(netSp.rs)}</td>
+      <td class="num cts net-cts ${netRaw < 0 ? 'neg-balance' : ''}">${fmtCts(netSp.cts)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const totNetRaw = totInRaw - totOutRaw;
+  const tInSp    = splitPaise(totInRaw);
+  const tOutSp   = splitPaise(totOutRaw);
+  const tNetSp   = splitPaise(totNetRaw);
+
+  setCell('t-total-in-rs',   fmt(tInSp.rs));
+  setCell('t-total-in-cts',  fmtCts(tInSp.cts));
+  setCell('t-total-out-rs',  fmt(tOutSp.rs));
+  setCell('t-total-out-cts', fmtCts(tOutSp.cts));
+  setCell('t-total-net-rs',  fmt(tNetSp.rs));
+  setCell('t-total-net-cts', fmtCts(tNetSp.cts));
+
+  const count = sorted.length;
+  document.getElementById('teller-count').textContent = `${count} teller${count !== 1 ? 's' : ''}`;
+}
+
+/* ════════════════════════════════════════════════
+   Render — Tally table (file 1 vs file 2)
+   ════════════════════════════════════════════════ */
+function renderTallyTable(file2Balances) {
+  const tbody = document.getElementById('tally-tbody');
+  tbody.innerHTML = '';
+
+  // All unique teller IDs from both files
+  const allTellers = [...new Set([
+    ...Object.keys(currentCashierRawMap),
+    ...Object.keys(file2Balances),
+  ])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  let matchCount = 0, diffCount = 0, missingCount = 0;
+
+  allTellers.forEach(teller => {
+    const f1 = currentCashierRawMap[teller];
+    const f2 = file2Balances[teller];
+
+    const f1NetRaw = f1 ? (f1.depositsRaw - f1.withdrawalsRaw) : null;
+    const f2NetRaw = f2 ? (f2.cashInRaw   - f2.cashOutRaw)     : null;
+
+    let diffRaw = null;
+    let matched = false;
+
+    if (f1NetRaw !== null && f2NetRaw !== null) {
+      diffRaw = f2NetRaw - f1NetRaw;
+      matched = diffRaw === 0;
+      matched ? matchCount++ : diffCount++;
+    } else {
+      missingCount++;
+    }
+
+    const cellF1  = f1NetRaw !== null ? pairCells(splitPaise(f1NetRaw))  : naCell(2);
+    const cellF2  = f2NetRaw !== null ? pairCells(splitPaise(f2NetRaw))  : naCell(2);
+    const cellDif = diffRaw  !== null ? pairCells(splitPaise(diffRaw))   : naCell(2);
+
+    let statusHtml;
+    if (f1NetRaw !== null && f2NetRaw !== null) {
+      statusHtml = matched
+        ? '<span class="tally-badge tally-match">&#10003; Match</span>'
+        : '<span class="tally-badge tally-diff">&#10007; Differs</span>';
+    } else {
+      statusHtml = '<span class="tally-badge tally-missing">&#9888; Missing</span>';
+    }
+
+    const tr = document.createElement('tr');
+    tr.className = f1NetRaw !== null && f2NetRaw !== null
+      ? (matched ? 'tally-row-match' : 'tally-row-diff')
+      : 'tally-row-missing';
+
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(teller)}</td>
+      ${cellF1}${cellF2}${cellDif}
+      <td class="status-cell">${statusHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Summary footer
+  const total = allTellers.length;
+  const summaryLabel = `${total} teller${total !== 1 ? 's' : ''}`;
+  const summaryMsg   = [
+    matchCount   ? `<span class="tally-badge tally-match">${matchCount} matched</span>`   : '',
+    diffCount    ? `<span class="tally-badge tally-diff">${diffCount} differ${diffCount !== 1 ? 's' : ''}</span>`    : '',
+    missingCount ? `<span class="tally-badge tally-missing">${missingCount} missing</span>` : '',
+  ].filter(Boolean).join(' ');
+
+  setCell('tally-summary-label', summaryLabel);
+  const msgEl = document.getElementById('tally-summary-msg');
+  if (msgEl) msgEl.innerHTML = summaryMsg;
+}
+
+/* ── Helper: build two <td> cells from a splitPaise result ── */
+function pairCells(sp) {
+  const neg   = sp.rs < 0 || (sp.rs === 0 && sp.neg);
+  const sign  = neg ? '−' : '';
+  return `<td class="num ${neg ? 'neg-balance' : ''}">${sign}${fmt(Math.abs(sp.rs))}</td>`
+       + `<td class="num cts ${neg ? 'neg-balance' : ''}">${fmtCts(sp.cts)}</td>`;
+}
+
+/* ── Helper: N colspan "—" cells ── */
+function naCell(span) {
+  return `<td class="num na-cell" colspan="${span}">—</td>`;
+}
+
+/* ════════════════════════════════════════════════
+   Utility — split a paise integer into Rs / Cts
+   ════════════════════════════════════════════════ */
+function splitPaise(raw) {
+  const neg = raw < 0;
+  const abs = Math.abs(raw);
+  return {
+    rs:  Math.floor(abs / 100) * (neg ? -1 : 1),
+    cts: abs % 100,
+    neg,
+  };
 }

@@ -217,6 +217,151 @@
         </div><!-- /tables-wrapper -->
       </div><!-- /report-panel -->
 
+      <!-- ═══ Second Document Section ═══ -->
+      <div class="second-doc-section" id="second-doc-section" hidden>
+
+        <!-- Section divider -->
+        <div class="section-divider">
+          <div class="divider-line"></div>
+          <div class="divider-label">
+            <svg class="divider-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>
+            </svg>
+            Second Document Verification
+          </div>
+          <div class="divider-line"></div>
+        </div>
+
+        <!-- Upload prompt for second file -->
+        <div class="second-upload-wrap" id="second-upload-wrap">
+          <div class="second-upload-card">
+            <div class="second-upload-icon">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M40 8H16a4 4 0 0 0-4 4v40a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V20L40 8z"/>
+                <path d="M40 8v12h12"/>
+                <line x1="24" y1="32" x2="40" y2="32"/>
+                <line x1="24" y1="40" x2="40" y2="40"/>
+              </svg>
+            </div>
+            <h3>Submit Second Document</h3>
+            <p>Upload the transaction record file to calculate teller-wise balances and tally against the cashier report above.</p>
+            <label class="btn btn-primary btn-lg" for="file-input-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Upload Second File
+            </label>
+            <input type="file" id="file-input-2" accept=".txt" hidden />
+            <p class="hint">Format: controlUnit &nbsp;cashIn &nbsp;cashOut &nbsp;code &nbsp;ref &nbsp;amount</p>
+          </div>
+        </div>
+
+        <!-- Teller panel (shown after second file loads) -->
+        <div class="teller-panel" id="teller-panel" hidden>
+
+          <!-- Status bar for second file -->
+          <div class="status-bar">
+            <div class="status-file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span id="file2-name">—</span>
+            </div>
+            <div class="status-meta">
+              <span class="badge badge-success">Loaded</span>
+              <span id="teller-count">0 tellers</span>
+              <label class="btn btn-outline btn-sm" for="file-input-2">Replace File</label>
+            </div>
+          </div>
+
+          <!-- Teller-wise Balance Table -->
+          <div class="card teller-balance-card">
+            <div class="teller-table-header">
+              <div class="teller-table-title-group">
+                <span class="teller-table-title">Teller-wise Balance</span>
+                <span class="teller-table-subtitle">Each teller starts at 0 — Cash In adds, Cash Out deducts</span>
+              </div>
+            </div>
+            <div class="raw-table-scroll">
+              <table class="teller-table" id="teller-table">
+                <thead>
+                  <tr>
+                    <th class="col-teller-id" rowspan="2">Teller ID</th>
+                    <th class="receipts" colspan="2">Cash In (Total)</th>
+                    <th class="payments" colspan="2">Cash Out (Total)</th>
+                    <th class="col-net" colspan="2">Net Balance</th>
+                  </tr>
+                  <tr>
+                    <th class="receipts">Rs.</th>
+                    <th class="receipts col-cts-sm">Cts.</th>
+                    <th class="payments">Rs.</th>
+                    <th class="payments col-cts-sm">Cts.</th>
+                    <th class="col-net">Rs.</th>
+                    <th class="col-net col-cts-sm">Cts.</th>
+                  </tr>
+                </thead>
+                <tbody id="teller-tbody"></tbody>
+                <tfoot>
+                  <tr class="total-row">
+                    <td>TOTAL</td>
+                    <td id="t-total-in-rs"   class="num">0</td>
+                    <td id="t-total-in-cts"  class="num cts">00</td>
+                    <td id="t-total-out-rs"  class="num">0</td>
+                    <td id="t-total-out-cts" class="num cts">00</td>
+                    <td id="t-total-net-rs"  class="num">0</td>
+                    <td id="t-total-net-cts" class="num cts">00</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tally Table -->
+          <div class="card tally-card">
+            <div class="teller-table-header">
+              <div class="teller-table-title-group">
+                <span class="teller-table-title">Tally — File 1 vs File 2</span>
+                <span class="teller-table-subtitle">File 1 net (Receipts &minus; Payments) compared against File 2 balance</span>
+              </div>
+              <div class="tally-legend">
+                <span class="tally-legend-item match"><span class="legend-dot match-dot"></span>Match</span>
+                <span class="tally-legend-item diff"><span class="legend-dot diff-dot"></span>Differs</span>
+                <span class="tally-legend-item missing"><span class="legend-dot missing-dot"></span>Missing</span>
+              </div>
+            </div>
+            <div class="raw-table-scroll">
+              <table class="tally-table" id="tally-table">
+                <thead>
+                  <tr>
+                    <th class="col-teller-id" rowspan="2">Teller ID</th>
+                    <th colspan="2">File 1 Net</th>
+                    <th colspan="2">File 2 Balance</th>
+                    <th colspan="2">Difference</th>
+                    <th class="col-status" rowspan="2">Status</th>
+                  </tr>
+                  <tr>
+                    <th>Rs.</th><th class="col-cts-sm">Cts.</th>
+                    <th>Rs.</th><th class="col-cts-sm">Cts.</th>
+                    <th>Rs.</th><th class="col-cts-sm">Cts.</th>
+                  </tr>
+                </thead>
+                <tbody id="tally-tbody"></tbody>
+                <tfoot>
+                  <tr class="total-row tally-summary-row" id="tally-summary-row">
+                    <td id="tally-summary-label">—</td>
+                    <td colspan="7" id="tally-summary-msg"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /teller-panel -->
+      </div><!-- /second-doc-section -->
+
     </main>
 
     <!-- Footer -->
