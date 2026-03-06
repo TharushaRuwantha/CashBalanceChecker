@@ -21,6 +21,10 @@ const reportDateEl   = document.getElementById('report-date');
 let unitTypes    = {};
 let currentRecords = [];
 
+/* ── Adjustment state (in paise/cents, reset on new file) ── */
+let receiptsAdjRaw = 0;
+let paymentsAdjRaw = 0;
+
 /* ── Footer year ── */
 yearEl.textContent = new Date().getFullYear();
 
@@ -324,16 +328,41 @@ function renderCashierTable(rows) {
    whenever unit types are toggled.
    ════════════════════════════════════════════════ */
 function updateSummaryFromCashierTotals() {
-  const recRs  = parseInt((document.getElementById('total-receipts-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
-  const recCts = parseInt( document.getElementById('total-receipts-cts').textContent || '0', 10) || 0;
-  const payRs  = parseInt((document.getElementById('total-payments-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
-  const payCts = parseInt( document.getElementById('total-payments-cts').textContent || '0', 10) || 0;
+  // Read base totals from cashier footer
+  const baseRecRs  = parseInt((document.getElementById('total-receipts-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const baseRecCts = parseInt( document.getElementById('total-receipts-cts').textContent || '0', 10) || 0;
+  const basePayRs  = parseInt((document.getElementById('total-payments-rs').textContent  || '0').replace(/,/g, ''), 10) || 0;
+  const basePayCts = parseInt( document.getElementById('total-payments-cts').textContent || '0', 10) || 0;
 
-  setCell('s-receipts-rs',  fmt(recRs));
-  setCell('s-receipts-cts', fmtCts(recCts));
-  setCell('s-payments-rs',  fmt(payRs));
-  setCell('s-payments-cts', fmtCts(payCts));
+  // Apply cumulative adjustments
+  const adjRecRaw = baseRecRs * 100 + baseRecCts + receiptsAdjRaw;
+  const adjPayRaw = basePayRs * 100 + basePayCts + paymentsAdjRaw;
+
+  const adjRecRs  = Math.floor(Math.abs(adjRecRaw) / 100) * (adjRecRaw < 0 ? -1 : 1);
+  const adjRecCts = Math.abs(adjRecRaw) % 100;
+  const adjPayRs  = Math.floor(Math.abs(adjPayRaw) / 100) * (adjPayRaw < 0 ? -1 : 1);
+  const adjPayCts = Math.abs(adjPayRaw) % 100;
+
+  setCell('s-receipts-rs',  fmt(adjRecRs));
+  setCell('s-receipts-cts', fmtCts(adjRecCts));
+  setCell('s-payments-rs',  fmt(adjPayRs));
+  setCell('s-payments-cts', fmtCts(adjPayCts));
+
+  // Update adjustment badges
+  updateAdjBadge('s-receipts-adj-badge', receiptsAdjRaw);
+  updateAdjBadge('s-payments-adj-badge', paymentsAdjRaw);
+
   recalcSummary();
+}
+
+function updateAdjBadge(id, adjRaw) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (adjRaw === 0) { el.textContent = ''; el.className = 'adj-badge'; return; }
+  const sign = adjRaw > 0 ? '+' : '\u2212';
+  const abs  = Math.abs(adjRaw);
+  el.textContent = `${sign}${fmt(Math.floor(abs / 100))}.${fmtCts(abs % 100)}`;
+  el.className   = `adj-badge ${adjRaw > 0 ? 'positive' : 'negative'}`;
 }
 
 /* ════════════════════════════════════════════════
@@ -341,7 +370,9 @@ function updateSummaryFromCashierTotals() {
    Resets BBF to 0 then syncs from cashier totals.
    ════════════════════════════════════════════════ */
 function renderSummaryTable() {
-  // Seed BBF inputs with 0 on each new file load, then sync receipts/payments
+  // Reset adjustments and BBF on each new file load
+  receiptsAdjRaw = 0;
+  paymentsAdjRaw = 0;
   document.getElementById('s-bbf-rs').value  = 0;
   document.getElementById('s-bbf-cts').value = 0;
   updateSummaryFromCashierTotals();
@@ -381,6 +412,100 @@ function recalcSummary() {
 /* ── Wire BBF inputs to live-recalc ── */
 document.getElementById('s-bbf-rs').addEventListener('input',  recalcSummary);
 document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
+
+/* ════════════════════════════════════════════════
+   Adjustment right-click context menu
+   ════════════════════════════════════════════════ */
+(function () {
+  const menu       = document.getElementById('adj-menu');
+  const menuTitle  = document.getElementById('adj-menu-title');
+  const btnPlus    = document.getElementById('adj-btn-plus');
+  const btnMinus   = document.getElementById('adj-btn-minus');
+  const rsInput    = document.getElementById('adj-rs');
+  const ctsInput   = document.getElementById('adj-cts');
+  const applyBtn   = document.getElementById('adj-apply');
+  const cancelBtn  = document.getElementById('adj-cancel');
+  const closeBtn   = document.getElementById('adj-close');
+
+  let adjTarget = null;  // 'receipts' | 'payments'
+  let adjSign   = 1;     // +1 | -1
+
+  function openMenu(target, clientX, clientY) {
+    adjTarget = target;
+    adjSign   = 1;
+    menuTitle.textContent = target === 'receipts' ? 'Adjust Receipts' : 'Adjust Payments';
+    btnPlus.classList.add('active');
+    btnMinus.classList.remove('active');
+    rsInput.value  = '';
+    ctsInput.value = '';
+
+    // Show first so we can measure dimensions
+    menu.hidden = false;
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let x = clientX + 6, y = clientY + 6;
+    if (x + mw > window.innerWidth  - 8) x = clientX - mw - 6;
+    if (y + mh > window.innerHeight - 8) y = clientY - mh - 6;
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+    rsInput.focus();
+  }
+
+  function closeMenu() { menu.hidden = true; }
+
+  // Right-click on Receipts row
+  document.getElementById('s-receipts-row').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    openMenu('receipts', e.clientX, e.clientY);
+  });
+
+  // Right-click on Payments row
+  document.getElementById('s-payments-row').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    openMenu('payments', e.clientX, e.clientY);
+  });
+
+  // Sign toggle
+  btnPlus.addEventListener('click', () => {
+    adjSign = 1;
+    btnPlus.classList.add('active');
+    btnMinus.classList.remove('active');
+  });
+  btnMinus.addEventListener('click', () => {
+    adjSign = -1;
+    btnMinus.classList.add('active');
+    btnPlus.classList.remove('active');
+  });
+
+  // Apply adjustment
+  applyBtn.addEventListener('click', () => {
+    const rs  = parseInt(rsInput.value,  10) || 0;
+    const cts = Math.min(99, parseInt(ctsInput.value, 10) || 0);
+    const delta = adjSign * (rs * 100 + cts);
+    if (adjTarget === 'receipts') receiptsAdjRaw += delta;
+    else                          paymentsAdjRaw += delta;
+    closeMenu();
+    updateSummaryFromCashierTotals();
+  });
+
+  // Allow Enter key to apply
+  [rsInput, ctsInput].forEach(inp => {
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyBtn.click(); });
+  });
+
+  // Cancel / close
+  cancelBtn.addEventListener('click', closeMenu);
+  closeBtn.addEventListener('click',  closeMenu);
+
+  // Click outside closes
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+  });
+
+  // Escape closes
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+  });
+}());
 
 /* ════════════════════════════════════════════════
    Calculate button

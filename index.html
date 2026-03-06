@@ -190,8 +190,8 @@
                     <input type="number" id="s-bbf-cts" class="bbf-input bbf-cts" value="0" min="0" max="99" />
                   </td>
                 </tr>
-                <tr>
-                  <td>Add &ndash; Receipts</td>
+                <tr id="s-receipts-row" class="adj-row" title="Right-click to adjust">
+                  <td>Add &ndash; Receipts <span class="adj-badge" id="s-receipts-adj-badge"></span></td>
                   <td class="num" id="s-receipts-rs">0</td>
                   <td class="num cts" id="s-receipts-cts">00</td>
                 </tr>
@@ -200,8 +200,8 @@
                   <td class="num" id="s-subtotal-rs">0</td>
                   <td class="num cts" id="s-subtotal-cts">00</td>
                 </tr>
-                <tr>
-                  <td>Less &ndash; Payments</td>
+                <tr id="s-payments-row" class="adj-row" title="Right-click to adjust">
+                  <td>Less &ndash; Payments <span class="adj-badge" id="s-payments-adj-badge"></span></td>
                   <td class="num" id="s-payments-rs">0</td>
                   <td class="num cts" id="s-payments-cts">00</td>
                 </tr>
@@ -225,6 +225,30 @@
     </footer>
 
   </div><!-- /app -->
+
+  <!-- ─── Adjustment context menu (shown on right-click) ─── -->
+  <div id="adj-menu" class="adj-menu" hidden>
+    <div class="adj-menu-header">
+      <span class="adj-menu-title" id="adj-menu-title">Adjust Receipts</span>
+      <button class="adj-close-btn" id="adj-close" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="adj-sign-row">
+      <button class="adj-sign-btn adj-plus active" id="adj-btn-plus">&#xFF0B; Add</button>
+      <button class="adj-sign-btn adj-minus"        id="adj-btn-minus">&#x2212; Reduce</button>
+    </div>
+    <div class="adj-amount-row">
+      <label class="adj-amount-label">Amount</label>
+      <div class="adj-inputs">
+        <input type="number" id="adj-rs"  class="adj-input"           placeholder="0"  min="0" />
+        <span class="adj-dot">.</span>
+        <input type="number" id="adj-cts" class="adj-input adj-cts-input" placeholder="00" min="0" max="99" />
+      </div>
+    </div>
+    <div class="adj-footer">
+      <button class="btn btn-primary" id="adj-apply">Apply</button>
+      <button class="btn btn-ghost"   id="adj-cancel">Cancel</button>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
