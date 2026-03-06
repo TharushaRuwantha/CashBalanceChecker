@@ -672,16 +672,28 @@ function parseSecondFile(lines) {
 
 /* ════════════════════════════════════════════════
    Build teller balances from second file
+   Logic: start each teller at 0
+     • cashIn  teller → balance += amount
+     • cashOut teller → balance -= amount
    ════════════════════════════════════════════════ */
 function buildTellerBalances(transactions) {
   const balances = {};
 
-  transactions.forEach(t => {
-    if (!balances[t.cashIn])  balances[t.cashIn]  = { cashInRaw: 0, cashOutRaw: 0 };
-    if (!balances[t.cashOut]) balances[t.cashOut] = { cashInRaw: 0, cashOutRaw: 0 };
+  function init(id) {
+    if (!balances[id]) balances[id] = { cashInTotal: 0, cashOutTotal: 0, balance: 0 };
+  }
 
-    balances[t.cashIn].cashInRaw   += t.amount;
-    balances[t.cashOut].cashOutRaw += t.amount;
+  transactions.forEach(t => {
+    init(t.cashIn);
+    init(t.cashOut);
+
+    // cashIn teller receives money — balance goes UP
+    balances[t.cashIn].cashInTotal += t.amount;
+    balances[t.cashIn].balance     += t.amount;
+
+    // cashOut teller gives money — balance goes DOWN
+    balances[t.cashOut].cashOutTotal += t.amount;
+    balances[t.cashOut].balance      -= t.amount;
   });
 
   return balances;
@@ -694,19 +706,19 @@ function renderTellerBalanceTable(balances) {
   const tbody = document.getElementById('teller-tbody');
   tbody.innerHTML = '';
 
-  let totInRaw = 0, totOutRaw = 0;
+  let totInRaw = 0, totOutRaw = 0, totBalRaw = 0;
 
   const sorted = Object.entries(balances).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
 
   sorted.forEach(([teller, data]) => {
-    const netRaw = data.cashInRaw - data.cashOutRaw;
-    totInRaw  += data.cashInRaw;
-    totOutRaw += data.cashOutRaw;
+    totInRaw  += data.cashInTotal;
+    totOutRaw += data.cashOutTotal;
+    totBalRaw += data.balance;
 
-    const sp = (raw) => splitPaise(raw);
-    const inSp  = sp(data.cashInRaw);
-    const outSp = sp(data.cashOutRaw);
-    const netSp = sp(netRaw);
+    const inSp  = splitPaise(data.cashInTotal);
+    const outSp = splitPaise(data.cashOutTotal);
+    const balSp = splitPaise(data.balance);
+    const neg   = data.balance < 0;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -715,23 +727,23 @@ function renderTellerBalanceTable(balances) {
       <td class="num cts receipts-cts">${fmtCts(inSp.cts)}</td>
       <td class="num payments-rs">${fmt(outSp.rs)}</td>
       <td class="num cts payments-cts">${fmtCts(outSp.cts)}</td>
-      <td class="num net-cell ${netRaw < 0 ? 'neg-balance' : ''}">${fmt(netSp.rs)}</td>
-      <td class="num cts net-cts ${netRaw < 0 ? 'neg-balance' : ''}">${fmtCts(netSp.cts)}</td>
+      <td class="num net-cell ${neg ? 'neg-balance' : ''}">${neg ? '−' : ''}${fmt(Math.abs(balSp.rs))}</td>
+      <td class="num cts net-cts ${neg ? 'neg-balance' : ''}">${fmtCts(balSp.cts)}</td>
     `;
     tbody.appendChild(tr);
   });
 
-  const totNetRaw = totInRaw - totOutRaw;
-  const tInSp    = splitPaise(totInRaw);
-  const tOutSp   = splitPaise(totOutRaw);
-  const tNetSp   = splitPaise(totNetRaw);
+  const tInSp  = splitPaise(totInRaw);
+  const tOutSp = splitPaise(totOutRaw);
+  const tBalSp = splitPaise(totBalRaw);
+  const tNeg   = totBalRaw < 0;
 
   setCell('t-total-in-rs',   fmt(tInSp.rs));
   setCell('t-total-in-cts',  fmtCts(tInSp.cts));
   setCell('t-total-out-rs',  fmt(tOutSp.rs));
   setCell('t-total-out-cts', fmtCts(tOutSp.cts));
-  setCell('t-total-net-rs',  fmt(tNetSp.rs));
-  setCell('t-total-net-cts', fmtCts(tNetSp.cts));
+  setCell('t-total-net-rs',  (tNeg ? '−' : '') + fmt(Math.abs(tBalSp.rs)));
+  setCell('t-total-net-cts', fmtCts(tBalSp.cts));
 
   const count = sorted.length;
   document.getElementById('teller-count').textContent = `${count} teller${count !== 1 ? 's' : ''}`;
@@ -757,7 +769,7 @@ function renderTallyTable(file2Balances) {
     const f2 = file2Balances[teller];
 
     const f1NetRaw = f1 ? (f1.depositsRaw - f1.withdrawalsRaw) : null;
-    const f2NetRaw = f2 ? (f2.cashInRaw   - f2.cashOutRaw)     : null;
+    const f2NetRaw = f2 ? f2.balance : null;
 
     let diffRaw = null;
     let matched = false;
