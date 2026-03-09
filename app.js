@@ -6,6 +6,7 @@
 
 /* ── Helpers ── */
 const padTellerId = id => String(id).padStart(7, '0');
+const branchCode  = tellerId => tellerId.substring(0, 3);
 
 /* ── DOM refs ── */
 const fileInput      = document.getElementById('file-input');
@@ -321,8 +322,21 @@ function renderCashierTable(rows) {
 
   let totalRecRs  = 0, totalRecCts  = 0;
   let totalPayRs  = 0, totalPayCts  = 0;
+  let currentBranch = null;
 
   rows.forEach((row) => {
+    // Insert branch header when branch changes (skip for empty padding rows)
+    if (row.name && row.name.length >= 3) {
+      const branch = branchCode(row.name);
+      if (branch !== currentBranch) {
+        currentBranch = branch;
+        const hdr = document.createElement('tr');
+        hdr.className = 'branch-header-row';
+        hdr.innerHTML = `<td colspan="5">Branch ${escHtml(branch)}</td>`;
+        cashierTbody.appendChild(hdr);
+      }
+    }
+
     const tr = document.createElement('tr');
     if (!row.name) tr.classList.add('empty-row');
 
@@ -710,10 +724,21 @@ function renderTellerBalanceTable(balances) {
   tbody.innerHTML = '';
 
   let totInRaw = 0, totOutRaw = 0, totBalRaw = 0;
+  let currentBranch = null;
 
   const sorted = Object.entries(balances).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
 
   sorted.forEach(([teller, data]) => {
+    // Insert branch header when branch changes
+    const branch = branchCode(teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="7">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
     totInRaw  += data.cashInTotal;
     totOutRaw += data.cashOutTotal;
     totBalRaw += data.balance;
@@ -766,8 +791,19 @@ function renderTallyTable(file2Balances) {
   ])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   let matchCount = 0, diffCount = 0, missingCount = 0;
+  let currentBranch = null;
 
   allTellers.forEach(teller => {
+    // Insert branch header when branch changes
+    const branch = branchCode(teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="8">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
     const f1 = currentCashierRawMap[teller];
     const f2 = file2Balances[teller];
 

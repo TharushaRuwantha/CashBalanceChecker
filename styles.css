@@ -958,6 +958,18 @@ td, th { padding: .6rem .9rem; }
 .tally-table .col-status    { width: 110px; text-align: center; }
 .tally-table .col-sum       { background: #fef9c3; color: #78350f; font-weight: 600; }
 
+/* Branch group header rows */
+.branch-header-row td {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .35rem .9rem;
+  border: none;
+}
+
 /* Row highlight by result */
 .tally-row-match   { background: #f0fdf4; }
 .tally-row-diff    { background: #fff1f2; }
