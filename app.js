@@ -771,20 +771,21 @@ function renderTallyTable(file2Balances) {
     const f1NetRaw = f1 ? (f1.depositsRaw - f1.withdrawalsRaw) : null;
     const f2NetRaw = f2 ? f2.balance : null;
 
-    let diffRaw = null;
+    let sumRaw  = null;
     let matched = false;
 
     if (f1NetRaw !== null && f2NetRaw !== null) {
-      diffRaw = f2NetRaw - f1NetRaw;
-      matched = diffRaw === 0;
+      // Both sides must cancel — if their sum is 0 the account is balanced
+      sumRaw  = f1NetRaw + f2NetRaw;
+      matched = sumRaw === 0;
       matched ? matchCount++ : diffCount++;
     } else {
       missingCount++;
     }
 
-    const cellF1  = f1NetRaw !== null ? pairCells(splitPaise(f1NetRaw))  : naCell(2);
-    const cellF2  = f2NetRaw !== null ? pairCells(splitPaise(f2NetRaw))  : naCell(2);
-    const cellDif = diffRaw  !== null ? pairCells(splitPaise(diffRaw))   : naCell(2);
+    const cellF1  = f1NetRaw !== null ? pairCells(splitPaise(f1NetRaw)) : naCell(2);
+    const cellF2  = f2NetRaw !== null ? pairCells(splitPaise(f2NetRaw)) : naCell(2);
+    const cellDif = sumRaw   !== null ? pairCells(splitPaise(sumRaw))   : naCell(2);
 
     let statusHtml;
     if (f1NetRaw !== null && f2NetRaw !== null) {

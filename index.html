@@ -324,7 +324,7 @@
             <div class="teller-table-header">
               <div class="teller-table-title-group">
                 <span class="teller-table-title">Tally — File 1 vs File 2</span>
-                <span class="teller-table-subtitle">File 1 net (Receipts &minus; Payments) compared against File 2 balance</span>
+                <span class="teller-table-subtitle">File 1 Net + File 2 Balance = 0 means the account is balanced</span>
               </div>
               <div class="tally-legend">
                 <span class="tally-legend-item match"><span class="legend-dot match-dot"></span>Match</span>
@@ -339,13 +339,13 @@
                     <th class="col-teller-id" rowspan="2">Teller ID</th>
                     <th colspan="2">File 1 Net</th>
                     <th colspan="2">File 2 Balance</th>
-                    <th colspan="2">Difference</th>
+                    <th colspan="2" class="col-sum">Sum (= 0 if balanced)</th>
                     <th class="col-status" rowspan="2">Status</th>
                   </tr>
                   <tr>
                     <th>Rs.</th><th class="col-cts-sm">Cts.</th>
                     <th>Rs.</th><th class="col-cts-sm">Cts.</th>
-                    <th>Rs.</th><th class="col-cts-sm">Cts.</th>
+                    <th class="col-sum">Rs.</th><th class="col-sum col-cts-sm">Cts.</th>
                   </tr>
                 </thead>
                 <tbody id="tally-tbody"></tbody>
