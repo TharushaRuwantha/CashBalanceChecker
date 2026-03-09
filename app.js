@@ -4,6 +4,9 @@
 
 'use strict';
 
+/* ── Helpers ── */
+const padTellerId = id => String(id).padStart(7, '0');
+
 /* ── DOM refs ── */
 const fileInput      = document.getElementById('file-input');
 const uploadPrompt   = document.getElementById('upload-prompt');
@@ -136,7 +139,7 @@ function parseTextFile(lines) {
       record = {
         type:     parseInt(parts[0], 10),
         unit:     parts[1],
-        teller:   parts[2],
+        teller:   padTellerId(parts[2]),
         currency: parts[3],
         tlbf01:   parseInt(parts[4], 10) || 0,
         tlbf02:   parseInt(parts[5], 10) || 0,
@@ -148,7 +151,7 @@ function parseTextFile(lines) {
       record = {
         type:     parseInt(parts[0], 10),
         unit:     '',
-        teller:   parts[1],
+        teller:   padTellerId(parts[1]),
         currency: parts[2],
         tlbf01:   parseInt(parts[3], 10) || 0,
         tlbf02:   parseInt(parts[4], 10) || 0,
@@ -660,8 +663,8 @@ function parseSecondFile(lines) {
 
     transactions.push({
       controlUnit: parts[0],
-      cashIn:      parts[1],
-      cashOut:     parts[2],
+      cashIn:      padTellerId(parts[1]),
+      cashOut:     padTellerId(parts[2]),
       code:        parts[3],
       ref:         parts[4],
       amount,
