@@ -1012,3 +1012,251 @@ function splitPaise(raw) {
     neg,
   };
 }
+
+/* ════════════════════════════════════════════════
+   Navigation Tabs — Main / V2
+   ════════════════════════════════════════════════ */
+(function () {
+  const mainView   = document.querySelector('.app-main');
+  const v2View     = document.getElementById('v2-view');
+  const tabMain    = document.getElementById('tab-main');
+  const tabV2      = document.getElementById('tab-v2');
+
+  function switchView(view) {
+    if (view === 'v2') {
+      mainView.hidden = true;
+      v2View.hidden   = false;
+      tabMain.classList.remove('active');
+      tabV2.classList.add('active');
+    } else {
+      mainView.hidden = false;
+      v2View.hidden   = true;
+      tabMain.classList.add('active');
+      tabV2.classList.remove('active');
+    }
+  }
+
+  tabMain.addEventListener('click', () => switchView('main'));
+  tabV2.addEventListener('click',   () => switchView('v2'));
+})();
+
+/* ════════════════════════════════════════════════
+   V2 — State
+   ════════════════════════════════════════════════ */
+let v2RecordsA = [];   // Parsed rows from File A
+
+/* ════════════════════════════════════════════════
+   V2 — File A upload handler
+   ════════════════════════════════════════════════ */
+document.getElementById('v2-file-a-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload  = (ev) => handleV2FileA(file.name, ev.target.result);
+  reader.onerror = () => alert('Error reading File A. Please try again.');
+  reader.readAsText(file);
+});
+
+function handleV2FileA(fileName, rawText) {
+  const lines = rawText
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  v2RecordsA = parseV2FileA(lines);
+
+  // Show status bar
+  const statusEl = document.getElementById('v2-file-a-status');
+  document.getElementById('v2-file-a-name').textContent  = fileName;
+  document.getElementById('v2-file-a-count').textContent =
+    `${v2RecordsA.length} row${v2RecordsA.length !== 1 ? 's' : ''}`;
+  statusEl.hidden = false;
+
+  // Show data panel and render tables
+  document.getElementById('v2-data-panel').hidden = false;
+  renderV2DetailTable(v2RecordsA);
+  renderV2SummaryTable(v2RecordsA);
+}
+
+/* ════════════════════════════════════════════════
+   V2 — File B upload handler (placeholder)
+   ════════════════════════════════════════════════ */
+document.getElementById('v2-file-b-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload  = (ev) => handleV2FileB(file.name, ev.target.result);
+  reader.onerror = () => alert('Error reading File B. Please try again.');
+  reader.readAsText(file);
+});
+
+function handleV2FileB(fileName, rawText) {
+  const statusEl = document.getElementById('v2-file-b-status');
+  document.getElementById('v2-file-b-name').textContent  = fileName;
+  document.getElementById('v2-file-b-count').textContent = '';
+  statusEl.hidden = false;
+  // Full logic will be added once the format is confirmed
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Parser for File A
+   Format (no header row):
+     [0] tellerID        e.g. 111717  → pad to 7 digits
+     [1] wdCurrency      e.g. 200LKR  → wd=200, currency=LKR
+                              100LKR  → wd=100, currency=LKR
+     [2] count           integer
+     [3] total           decimal amount
+     [4] ref             integer / reference
+   ════════════════════════════════════════════════ */
+function parseV2FileA(lines) {
+  const records = [];
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 4) return;
+
+    const tellerRaw   = parts[0];
+    const wdCurrency  = parts[1] || '';
+
+    // Extract W/D code (first 3 chars must be digits) and currency (the rest)
+    const wdMatch = wdCurrency.match(/^(\d+)([A-Z]+)$/);
+    if (!wdMatch) return;   // skip malformed rows
+    const wd       = wdMatch[1];   // '100' or '200' (or other codes)
+    const currency = wdMatch[2];   // 'LKR', 'USD', etc.
+
+    const count = parseInt(parts[2], 10);
+    const total = parseFloat(parts[3]);
+    const ref   = parts[4] !== undefined ? parts[4] : '';
+
+    if (isNaN(count) || isNaN(total)) return;
+
+    records.push({
+      teller:   padTellerId(tellerRaw),
+      wd,
+      currency,
+      count,
+      total,     // decimal, e.g. 31406928.08
+      ref,
+    });
+  });
+  return records;
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Format a decimal amount with commas
+   ════════════════════════════════════════════════ */
+function fmtAmt(n) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Render Detail table
+   ════════════════════════════════════════════════ */
+function renderV2DetailTable(records) {
+  const tbody = document.getElementById('v2-detail-tbody');
+  tbody.innerHTML = '';
+
+  records.forEach(r => {
+    const isDeposit    = r.wd === '100';
+    const isWithdrawal = r.wd === '200';
+    const typeLabel    = isDeposit    ? 'Deposit'
+                       : isWithdrawal ? 'Withdrawal'
+                       : r.wd;
+    const typeClass    = isDeposit    ? 'wd-deposit'
+                       : isWithdrawal ? 'wd-withdrawal'
+                       : '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(r.teller)}</td>
+      <td class="num" style="text-align:center">${escHtml(r.wd)}</td>
+      <td class="${typeClass}">${escHtml(typeLabel)}</td>
+      <td style="text-align:center">${escHtml(r.currency)}</td>
+      <td class="num">${fmt(r.count)}</td>
+      <td class="num">${fmtAmt(r.total)}</td>
+      <td class="num">${escHtml(r.ref)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Render Summary table (per teller + currency)
+   Shows: deposits count/amount, withdrawals count/amount, difference
+   ════════════════════════════════════════════════ */
+function renderV2SummaryTable(records) {
+  const tbody = document.getElementById('v2-summary-tbody');
+  tbody.innerHTML = '';
+
+  // Aggregate by teller + currency
+  const map = {};
+  records.forEach(r => {
+    const key = r.teller + '|' + r.currency;
+    if (!map[key]) {
+      map[key] = {
+        teller:   r.teller,
+        currency: r.currency,
+        depCount: 0,  depTotal: 0,
+        wdCount:  0,  wdTotal:  0,
+      };
+    }
+    if (r.wd === '100') {
+      map[key].depCount += r.count;
+      map[key].depTotal += r.total;
+    } else if (r.wd === '200') {
+      map[key].wdCount  += r.count;
+      map[key].wdTotal  += r.total;
+    }
+  });
+
+  const sorted = Object.values(map).sort((a, b) =>
+    a.teller.localeCompare(b.teller, undefined, { numeric: true })
+  );
+
+  let totDepCount = 0, totDepTotal = 0;
+  let totWdCount  = 0, totWdTotal  = 0;
+
+  sorted.forEach(row => {
+    const diffCount = row.depCount - row.wdCount;
+    const diffTotal = row.depTotal - row.wdTotal;
+
+    const diffClass = diffTotal > 0 ? 'diff-positive'
+                    : diffTotal < 0 ? 'diff-negative'
+                    : 'diff-zero';
+
+    const sign = diffTotal < 0 ? '−' : (diffTotal > 0 ? '+' : '');
+
+    totDepCount += row.depCount;
+    totDepTotal += row.depTotal;
+    totWdCount  += row.wdCount;
+    totWdTotal  += row.wdTotal;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(row.teller)}</td>
+      <td style="text-align:center">${escHtml(row.currency)}</td>
+      <td class="num receipts-rs">${fmt(row.depCount)}</td>
+      <td class="num receipts-rs">${fmtAmt(row.depTotal)}</td>
+      <td class="num payments-rs">${fmt(row.wdCount)}</td>
+      <td class="num payments-rs">${fmtAmt(row.wdTotal)}</td>
+      <td class="num ${diffClass}">${fmt(Math.abs(diffCount))}</td>
+      <td class="num ${diffClass}">${sign}${fmtAmt(Math.abs(diffTotal))}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Totals footer
+  const totDiff      = totDepTotal - totWdTotal;
+  const totDiffCount = totDepCount - totWdCount;
+  const totClass     = totDiff > 0 ? 'diff-positive' : totDiff < 0 ? 'diff-negative' : 'diff-zero';
+  const totSign      = totDiff < 0 ? '−' : (totDiff > 0 ? '+' : '');
+
+  setCell('v2-tot-dep-count',  fmt(totDepCount));
+  setCell('v2-tot-dep-amt',    fmtAmt(totDepTotal));
+  setCell('v2-tot-wd-count',   fmt(totWdCount));
+  setCell('v2-tot-wd-amt',     fmtAmt(totWdTotal));
+
+  const diffCountEl = document.getElementById('v2-tot-diff-count');
+  const diffAmtEl   = document.getElementById('v2-tot-diff-amt');
+  if (diffCountEl) { diffCountEl.textContent = fmt(Math.abs(totDiffCount)); diffCountEl.className = `num col-net ${totClass}`; }
+  if (diffAmtEl)   { diffAmtEl.textContent   = totSign + fmtAmt(Math.abs(totDiff)); diffAmtEl.className = `num col-net ${totClass}`; }
+}
