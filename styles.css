@@ -817,3 +817,235 @@ td, th { padding: .6rem .9rem; }
 .bal-net-dep  { color: #15803d; font-weight: 600; }
 .bal-net-pay  { color: #b91c1c; font-weight: 600; }
 .bal-net-zero { color: var(--clr-txt-muted); }
+   Second Document Section
+   ═══════════════════════════════════════════════ */
+
+/* ── Section divider ── */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 1.5rem;
+}
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--clr-border);
+}
+.divider-label {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--clr-txt-muted);
+  white-space: nowrap;
+  padding: .3rem .75rem;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: 20px;
+}
+.divider-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--clr-primary);
+}
+
+/* ── Second-file upload card ── */
+.second-upload-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--gap);
+}
+.second-upload-card {
+  background: var(--clr-surface);
+  border: 2px dashed var(--clr-border);
+  border-radius: var(--radius);
+  padding: 2.5rem 3rem;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .2s;
+}
+.second-upload-card:hover { border-color: var(--clr-primary); }
+
+.second-upload-icon {
+  margin: 0 auto 1rem;
+  width: 64px;
+  height: 64px;
+  color: var(--clr-primary);
+  opacity: .75;
+}
+.second-upload-icon svg { width: 100%; height: 100%; }
+
+.second-upload-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: .4rem;
+}
+.second-upload-card p {
+  color: var(--clr-txt-muted);
+  font-size: .875rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Small button variant */
+.btn-sm { padding: .3rem .75rem; font-size: .78rem; }
+
+/* ── Teller panel cards ── */
+.teller-balance-card,
+.tally-card {
+  margin-bottom: var(--gap);
+}
+
+.teller-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--clr-border);
+  background: var(--clr-surface-2);
+}
+.teller-table-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.teller-table-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--clr-txt-muted);
+}
+.teller-table-subtitle {
+  font-size: .72rem;
+  color: var(--clr-txt-light);
+}
+
+/* ── Teller Balance Table ── */
+.teller-table {
+  min-width: 760px;
+  font-size: .875rem;
+}
+.teller-table .col-teller-id { width: 130px; font-family: var(--font-mono); font-weight: 700; }
+.teller-table .col-net       { background: var(--clr-primary-lt); }
+
+.teller-table thead th.receipts { background: var(--clr-receipts); color: #2e7d32; }
+.teller-table thead th.payments { background: var(--clr-payments); color: #b71c1c; }
+.teller-table thead th.col-net  { background: #ede9fe; color: #5b21b6; }
+
+.col-cts-sm { width: 52px; }
+
+.teller-id-cell {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: .85rem;
+  color: var(--clr-primary);
+}
+
+.net-cell  { font-weight: 700; background: color-mix(in srgb, var(--clr-primary-lt) 40%, transparent); }
+.net-cts   { background: color-mix(in srgb, var(--clr-primary-lt) 40%, transparent); }
+.neg-balance { color: #b91c1c !important; }
+
+/* ── Tally Legend ── */
+.tally-legend {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.tally-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .73rem;
+  font-weight: 500;
+  color: var(--clr-txt-muted);
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.match-dot   { background: #22c55e; }
+.diff-dot    { background: #ef4444; }
+.missing-dot { background: #f59e0b; }
+
+/* ── Tally Table ── */
+.tally-table {
+  min-width: 720px;
+  font-size: .875rem;
+}
+.tally-table .col-teller-id { width: 130px; }
+.tally-table .col-status    { width: 110px; text-align: center; }
+.tally-table .col-sum       { background: #fef9c3; color: #78350f; font-weight: 600; }
+
+/* Branch group header rows */
+.branch-header-row td {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .35rem .9rem;
+  border: none;
+}
+
+/* Row highlight by result */
+.tally-row-match   { background: #f0fdf4; }
+.tally-row-diff    { background: #fff1f2; }
+.tally-row-missing { background: #fffbeb; }
+
+.tally-row-match:hover   { background: #dcfce7 !important; }
+.tally-row-diff:hover    { background: #ffe4e6 !important; }
+.tally-row-missing:hover { background: #fef3c7 !important; }
+
+/* Status badges */
+.tally-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .18em .65em;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+.tally-match   { background: #dcfce7; color: #15803d; }
+.tally-diff    { background: #fee2e2; color: #b91c1c; }
+.tally-missing { background: #fef3c7; color: #92400e; }
+
+.status-cell { text-align: center; }
+.na-cell { color: var(--clr-txt-light); text-align: center !important; }
+
+/* Tally summary row */
+.tally-summary-row td { padding: .65rem .9rem; background: var(--clr-surface-2); }
+.tally-summary-row #tally-summary-msg {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Print additions ── */
+@media print {
+  .second-upload-wrap,
+  .section-divider .btn,
+  .tally-legend { display: none !important; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .teller-balance-card,
+  .tally-card { overflow-x: auto; }
+  .second-upload-card { padding: 1.75rem 1.5rem; }
+}
