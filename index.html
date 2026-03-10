@@ -553,6 +553,108 @@
             </div>
           </div>
 
+          <!-- ── File B panel (shown after File B loads) ── -->
+          <div id="v2-file-b-panel" hidden>
+
+            <!-- File B raw entries table -->
+            <div class="card v2-detail-card">
+              <div class="v2-table-header">
+                <div class="v2-table-title-group">
+                  <span class="v2-table-title">File B — Transfer Entries</span>
+                  <span class="v2-table-subtitle">Each row: amount added to Teller 1 and reduced from Teller 2</span>
+                </div>
+                <span class="v2-row-count" id="v2-file-b-row-count"></span>
+              </div>
+              <div class="raw-table-scroll">
+                <table class="v2-fileb-table" id="v2-fileb-table">
+                  <thead>
+                    <tr>
+                      <th class="col-v2-unit">Unit</th>
+                      <th class="col-teller-id">Teller 1 (Add)</th>
+                      <th class="col-teller-id">Teller 2 (Reduce)</th>
+                      <th class="col-v2-ref num">Ref</th>
+                      <th class="col-v2-currency">Currency</th>
+                      <th class="col-v2-total num">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="v2-fileb-tbody"></tbody>
+                  <tfoot>
+                    <tr class="total-row">
+                      <td colspan="5">TOTAL</td>
+                      <td id="v2-fileb-total" class="num">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Per-teller File B net table -->
+            <div class="card v2-detail-card">
+              <div class="v2-table-header">
+                <div class="v2-table-title-group">
+                  <span class="v2-table-title">File B — Per-Teller Net</span>
+                  <span class="v2-table-subtitle">Net effect of File B transfers per teller, grouped by branch</span>
+                </div>
+              </div>
+              <div class="raw-table-scroll">
+                <table class="v2-fileb-net-table" id="v2-fileb-net-table">
+                  <thead>
+                    <tr>
+                      <th class="col-teller-id" rowspan="2">Teller ID</th>
+                      <th class="receipts">Added</th>
+                      <th class="payments">Reduced</th>
+                      <th class="col-net">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody id="v2-fileb-net-tbody"></tbody>
+                  <tfoot>
+                    <tr class="total-row">
+                      <td>TOTAL</td>
+                      <td id="v2-fileb-net-added"   class="num receipts">—</td>
+                      <td id="v2-fileb-net-reduced"  class="num payments">—</td>
+                      <td id="v2-fileb-net-total"   class="num col-net">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Reconciliation table (File A net vs File B net → should be 0) -->
+            <div class="card v2-recon-card">
+              <div class="v2-table-header">
+                <div class="v2-table-title-group">
+                  <span class="v2-table-title">Reconciliation</span>
+                  <span class="v2-table-subtitle">File A net + File B net must equal 0 for each teller</span>
+                </div>
+                <span class="v2-recon-grand" id="v2-recon-grand"></span>
+              </div>
+              <div class="raw-table-scroll">
+                <table class="v2-recon-table" id="v2-recon-table">
+                  <thead>
+                    <tr>
+                      <th class="col-teller-id">Teller ID</th>
+                      <th class="receipts">File A Net<br><small>(Dep − Wd)</small></th>
+                      <th class="payments">File B Net<br><small>(Add − Reduce)</small></th>
+                      <th class="col-net">Difference<br><small>(should be 0)</small></th>
+                      <th class="col-recon-status">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="v2-recon-tbody"></tbody>
+                  <tfoot>
+                    <tr class="total-row">
+                      <td>TOTAL</td>
+                      <td id="v2-recon-tot-a"      class="num receipts">—</td>
+                      <td id="v2-recon-tot-b"      class="num payments">—</td>
+                      <td id="v2-recon-tot-diff"   class="num col-net">—</td>
+                      <td id="v2-recon-tot-status" class="status-cell">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+          </div><!-- /v2-file-b-panel -->
+
         </div><!-- /v2-data-panel -->
       </div><!-- /v2-main -->
     </div><!-- /v2-view -->
