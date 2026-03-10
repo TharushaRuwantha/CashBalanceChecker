@@ -246,7 +246,7 @@ function buildAndRenderCashierTable(records) {
   const cashierMap = {};
 
   records
-    .filter(r => r.type === 2)
+    .filter(r => r.teller !== '0')   // same set shown in the raw table — includes type 1 & 2
     .forEach(r => {
       // Service-center units collapse all their tellers into one row
       const key = unitTypes[r.unit] === 'service-center' ? r.unit : r.teller;
