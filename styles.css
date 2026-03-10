@@ -1036,11 +1036,184 @@ td, th { padding: .6rem .9rem; }
   align-items: center;
 }
 
+/* ══════════════════════════════════════════════════
+   Navigation Tabs
+   ══════════════════════════════════════════════════ */
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  border: 1.5px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: .2rem;
+  background: var(--clr-surface-2);
+}
+
+.nav-tab {
+  padding: .3rem .9rem;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--clr-txt-muted);
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.nav-tab:hover { background: var(--clr-surface); color: var(--clr-txt); }
+.nav-tab.active {
+  background: var(--clr-primary);
+  color: #fff;
+}
+
+/* ══════════════════════════════════════════════════
+   V2 View wrapper
+   ══════════════════════════════════════════════════ */
+.v2-view {
+  flex: 1;
+}
+
+.v2-main {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* ── Upload row (two cards side by side) ── */
+.v2-uploads-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+@media (max-width: 800px) {
+  .v2-uploads-row { grid-template-columns: 1fr; }
+}
+
+.v2-upload-card {
+  padding: 1.25rem 1.5rem;
+}
+
+.v2-upload-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.v2-upload-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.v2-upload-title {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--clr-txt);
+}
+.v2-upload-hint {
+  font-size: .78rem;
+  color: var(--clr-txt-muted);
+}
+.v2-upload-hint code {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  background: var(--clr-surface-2);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+
+.v2-file-status {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--clr-border-soft);
+  font-size: .85rem;
+  color: var(--clr-txt-muted);
+}
+.v2-file-status svg {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  color: var(--clr-primary);
+}
+
+/* ── Table shared header ── */
+.v2-table-header {
+  padding: .9rem 1.1rem .5rem;
+  border-bottom: 1px solid var(--clr-border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.v2-table-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.v2-table-title {
+  font-weight: 700;
+  font-size: .95rem;
+}
+.v2-table-subtitle {
+  font-size: .78rem;
+  color: var(--clr-txt-muted);
+}
+
+/* ── Detail table columns ── */
+.v2-detail-table {
+  min-width: 660px;
+  font-size: .875rem;
+}
+.v2-detail-table .col-teller-id {
+  width: 110px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.v2-detail-table .col-v2-wd       { width: 60px;  text-align: center; }
+.v2-detail-table .col-v2-type     { width: 120px; }
+.v2-detail-table .col-v2-currency { width: 80px;  text-align: center; }
+.v2-detail-table .col-v2-count    { width: 80px; }
+.v2-detail-table .col-v2-total    { width: 160px; }
+.v2-detail-table .col-v2-ref      { width: 80px; }
+
+/* ── Summary table columns ── */
+.v2-summary-table {
+  min-width: 780px;
+  font-size: .875rem;
+}
+.v2-summary-table .col-teller-id {
+  width: 110px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.v2-summary-table .col-v2-currency { width: 80px; text-align: center; }
+.v2-summary-table .receipts { background: var(--clr-receipts); }
+.v2-summary-table .payments { background: var(--clr-payments); }
+.v2-summary-table .col-net  { background: var(--clr-subtotal); }
+
+/* W/D type badge in detail table */
+.wd-deposit    { color: #15803d; font-weight: 600; }
+.wd-withdrawal { color: #b91c1c; font-weight: 600; }
+
+/* Difference: positive / negative / zero */
+.diff-positive { color: #15803d; font-weight: 600; }
+.diff-negative { color: #b91c1c; font-weight: 600; }
+.diff-zero     { color: var(--clr-txt-muted); }
+
 /* ── Print additions ── */
 @media print {
   .second-upload-wrap,
   .section-divider .btn,
   .tally-legend { display: none !important; }
+  .v2-upload-header .btn { display: none !important; }
 }
 
 /* ── Responsive ── */

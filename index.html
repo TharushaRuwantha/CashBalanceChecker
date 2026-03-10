@@ -24,6 +24,12 @@
           <span class="logo-text">Cash<strong>Balance</strong></span>
         </div>
 
+        <!-- Nav tabs -->
+        <nav class="nav-tabs">
+          <button class="nav-tab active" id="tab-main" data-view="main">Main</button>
+          <button class="nav-tab"        id="tab-v2"   data-view="v2">V2</button>
+        </nav>
+
         <div class="header-right">
           <!-- Date picker -->
           <div class="field-group">
@@ -409,6 +415,147 @@
       </div><!-- /second-doc-section -->
 
     </main>
+
+    <!-- ═══ V2 View ═══ -->
+    <div class="app-view v2-view" id="v2-view" hidden>
+      <div class="v2-main">
+
+        <!-- Upload row -->
+        <div class="v2-uploads-row">
+
+          <!-- File A upload card -->
+          <div class="card v2-upload-card" id="v2-file-a-card">
+            <div class="v2-upload-header">
+              <div class="v2-upload-titles">
+                <span class="v2-upload-title">File A — Teller Transactions</span>
+                <span class="v2-upload-hint">Format: &nbsp;<code>TellerID&nbsp; WD+Currency&nbsp; Count&nbsp; Total&nbsp; Ref</code></span>
+              </div>
+              <label class="btn btn-outline" for="v2-file-a-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Upload File A
+              </label>
+              <input type="file" id="v2-file-a-input" accept=".txt" hidden />
+            </div>
+            <div id="v2-file-a-status" class="v2-file-status" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span id="v2-file-a-name"></span>
+              <span class="badge badge-success">Loaded</span>
+              <span id="v2-file-a-count"></span>
+            </div>
+          </div>
+
+          <!-- File B upload card (placeholder — details TBD) -->
+          <div class="card v2-upload-card" id="v2-file-b-card">
+            <div class="v2-upload-header">
+              <div class="v2-upload-titles">
+                <span class="v2-upload-title">File B — Reference Data</span>
+                <span class="v2-upload-hint">Upload the second file to enable reconciliation</span>
+              </div>
+              <label class="btn btn-outline" for="v2-file-b-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Upload File B
+              </label>
+              <input type="file" id="v2-file-b-input" accept=".txt" hidden />
+            </div>
+            <div id="v2-file-b-status" class="v2-file-status" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span id="v2-file-b-name"></span>
+              <span class="badge badge-success">Loaded</span>
+              <span id="v2-file-b-count"></span>
+            </div>
+          </div>
+
+        </div><!-- /v2-uploads-row -->
+
+        <!-- V2 data panel (shown after File A loads) -->
+        <div id="v2-data-panel" hidden>
+
+          <!-- ── Detail table ── -->
+          <div class="card v2-detail-card">
+            <div class="v2-table-header">
+              <div class="v2-table-title-group">
+                <span class="v2-table-title">Transaction Detail</span>
+                <span class="v2-table-subtitle">Each row from File A — 100 = Deposit &nbsp;|&nbsp; 200 = Withdrawal</span>
+              </div>
+            </div>
+            <div class="raw-table-scroll">
+              <table class="v2-detail-table" id="v2-detail-table">
+                <thead>
+                  <tr>
+                    <th class="col-teller-id">Teller ID</th>
+                    <th class="col-v2-wd">W/D</th>
+                    <th class="col-v2-type">Type</th>
+                    <th class="col-v2-currency">Currency</th>
+                    <th class="col-v2-count num">Count</th>
+                    <th class="col-v2-total num">Total Amount</th>
+                    <th class="col-v2-ref num">Ref</th>
+                  </tr>
+                </thead>
+                <tbody id="v2-detail-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ── Summary table (deposits vs withdrawals + difference) ── -->
+          <div class="card v2-summary-card">
+            <div class="v2-table-header">
+              <div class="v2-table-title-group">
+                <span class="v2-table-title">Teller Summary</span>
+                <span class="v2-table-subtitle">Deposits vs Withdrawals with net difference per teller</span>
+              </div>
+            </div>
+            <div class="raw-table-scroll">
+              <table class="v2-summary-table" id="v2-summary-table">
+                <thead>
+                  <tr>
+                    <th class="col-teller-id" rowspan="2">Teller ID</th>
+                    <th class="col-v2-currency" rowspan="2">Currency</th>
+                    <th class="receipts" colspan="2">Deposits (100)</th>
+                    <th class="payments" colspan="2">Withdrawals (200)</th>
+                    <th class="col-net" colspan="2">Difference</th>
+                  </tr>
+                  <tr>
+                    <th class="receipts">Count</th>
+                    <th class="receipts">Amount</th>
+                    <th class="payments">Count</th>
+                    <th class="payments">Amount</th>
+                    <th class="col-net">Count</th>
+                    <th class="col-net">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="v2-summary-tbody"></tbody>
+                <tfoot>
+                  <tr class="total-row">
+                    <td colspan="2">TOTAL</td>
+                    <td id="v2-tot-dep-count"  class="num receipts">—</td>
+                    <td id="v2-tot-dep-amt"    class="num receipts">—</td>
+                    <td id="v2-tot-wd-count"   class="num payments">—</td>
+                    <td id="v2-tot-wd-amt"     class="num payments">—</td>
+                    <td id="v2-tot-diff-count" class="num col-net">—</td>
+                    <td id="v2-tot-diff-amt"   class="num col-net">—</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /v2-data-panel -->
+      </div><!-- /v2-main -->
+    </div><!-- /v2-view -->
 
     <!-- Footer -->
     <footer class="app-footer">
