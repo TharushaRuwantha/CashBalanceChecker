@@ -1076,6 +1076,11 @@ function handleV2FileA(fileName, rawText) {
   document.getElementById('v2-data-panel').hidden = false;
   renderV2DetailTable(v2RecordsA);
   renderV2SummaryTable(v2RecordsA);
+
+  // Re-run reconciliation if File B is already loaded
+  if (v2RecordsB.length > 0) {
+    renderV2Reconciliation(v2RecordsA, v2RecordsB);
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -1090,12 +1095,70 @@ document.getElementById('v2-file-b-input').addEventListener('change', (e) => {
   reader.readAsText(file);
 });
 
+/* ════════════════════════════════════════════════
+   V2 — State for File B
+   ════════════════════════════════════════════════ */
+let v2RecordsB = [];   // Parsed rows from File B
+
 function handleV2FileB(fileName, rawText) {
-  const statusEl = document.getElementById('v2-file-b-status');
+  const lines = rawText
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  v2RecordsB = parseV2FileB(lines);
+
+  // Show status bar
   document.getElementById('v2-file-b-name').textContent  = fileName;
-  document.getElementById('v2-file-b-count').textContent = '';
-  statusEl.hidden = false;
-  // Full logic will be added once the format is confirmed
+  document.getElementById('v2-file-b-count').textContent =
+    `${v2RecordsB.length} row${v2RecordsB.length !== 1 ? 's' : ''}`;
+  document.getElementById('v2-file-b-status').hidden = false;
+
+  // Show File B panel and render tables
+  document.getElementById('v2-file-b-panel').hidden = false;
+  renderV2FileBTable(v2RecordsB);
+  renderV2FileBNetTable(v2RecordsB);
+
+  // Reconciliation requires File A — render if File A is already loaded
+  if (v2RecordsA.length > 0) {
+    renderV2Reconciliation(v2RecordsA, v2RecordsB);
+  }
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Parser for File B
+   Format (no header row):
+     [0] controlUnit    e.g. A1
+     [1] teller1        pad to 7 digits — amount is ADDED to this teller
+     [2] teller2        pad to 7 digits — amount is REDUCED from this teller
+     [3] ref            e.g. 917
+     [4] refCurrency    e.g. 90326LKR → ref=90326, currency=LKR
+     [5] amount         last column — the total to add/reduce
+   ════════════════════════════════════════════════ */
+function parseV2FileB(lines) {
+  const records = [];
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 6) return;
+
+    const controlUnit = parts[0];
+    const teller1     = padTellerId(parts[1]);
+    const teller2     = padTellerId(parts[2]);
+    const ref         = parts[3];
+
+    // Extract ref number and currency from combined field (e.g. "90326LKR")
+    const combined = parts[4] || '';
+    const comboMatch = combined.match(/^(\d*)([A-Z]+)$/);
+    const refNum   = comboMatch ? comboMatch[1] : combined;
+    const currency = comboMatch ? comboMatch[2] : '';
+
+    // Last column is the amount
+    const amount = parseFloat(parts[parts.length - 1]);
+    if (isNaN(amount)) return;
+
+    records.push({ controlUnit, teller1, teller2, ref, refNum, currency, amount });
+  });
+  return records;
 }
 
 /* ════════════════════════════════════════════════
@@ -1154,8 +1217,18 @@ function fmtAmt(n) {
 function renderV2DetailTable(records) {
   const tbody = document.getElementById('v2-detail-tbody');
   tbody.innerHTML = '';
+  let currentBranch = null;
 
   records.forEach(r => {
+    const branch = branchCode(r.teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="7">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
     const isDeposit    = r.wd === '100';
     const isWithdrawal = r.wd === '200';
     const typeLabel    = isDeposit    ? 'Deposit'
@@ -1214,8 +1287,18 @@ function renderV2SummaryTable(records) {
 
   let totDepCount = 0, totDepTotal = 0;
   let totWdCount  = 0, totWdTotal  = 0;
+  let currentBranch = null;
 
   sorted.forEach(row => {
+    const branch = branchCode(row.teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="8">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
     const diffCount = row.depCount - row.wdCount;
     const diffTotal = row.depTotal - row.wdTotal;
 
@@ -1260,3 +1343,228 @@ function renderV2SummaryTable(records) {
   if (diffCountEl) { diffCountEl.textContent = fmt(Math.abs(totDiffCount)); diffCountEl.className = `num col-net ${totClass}`; }
   if (diffAmtEl)   { diffAmtEl.textContent   = totSign + fmtAmt(Math.abs(totDiff)); diffAmtEl.className = `num col-net ${totClass}`; }
 }
+
+/* ════════════════════════════════════════════════
+   V2 — Render File B raw entries table
+   ════════════════════════════════════════════════ */
+function renderV2FileBTable(records) {
+  const tbody = document.getElementById('v2-fileb-tbody');
+  tbody.innerHTML = '';
+
+  let grandTotal = 0;
+
+  records.forEach(r => {
+    grandTotal += r.amount;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:center">${escHtml(r.controlUnit)}</td>
+      <td class="teller-id-cell wd-deposit">${escHtml(r.teller1)}</td>
+      <td class="teller-id-cell wd-withdrawal">${escHtml(r.teller2)}</td>
+      <td class="num">${escHtml(r.ref)}</td>
+      <td style="text-align:center">${escHtml(r.currency)}</td>
+      <td class="num">${fmtAmt(r.amount)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  setCell('v2-fileb-total', fmtAmt(grandTotal));
+  document.getElementById('v2-file-b-row-count').textContent =
+    `${records.length} row${records.length !== 1 ? 's' : ''}`;
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Build per-teller net from File B
+   Returns { [teller7]: { added: n, reduced: n, net: n } }
+   ════════════════════════════════════════════════ */
+function buildV2FileBPerTellerNet(records) {
+  const map = {};
+  function init(id) {
+    if (!map[id]) map[id] = { added: 0, reduced: 0, net: 0 };
+  }
+  records.forEach(r => {
+    init(r.teller1);
+    init(r.teller2);
+    map[r.teller1].added   += r.amount;
+    map[r.teller1].net     += r.amount;
+    map[r.teller2].reduced += r.amount;
+    map[r.teller2].net     -= r.amount;
+  });
+  return map;
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Render File B per-teller net table
+   ════════════════════════════════════════════════ */
+function renderV2FileBNetTable(records) {
+  const tbody = document.getElementById('v2-fileb-net-tbody');
+  tbody.innerHTML = '';
+
+  const map = buildV2FileBPerTellerNet(records);
+  const sorted = Object.entries(map).sort(([a], [b]) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  );
+
+  let totAdded = 0, totReduced = 0, totNet = 0;
+  let currentBranch = null;
+
+  sorted.forEach(([teller, data]) => {
+    const branch = branchCode(teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="4">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
+    totAdded   += data.added;
+    totReduced += data.reduced;
+    totNet     += data.net;
+
+    const netClass = data.net > 0 ? 'diff-positive' : data.net < 0 ? 'diff-negative' : 'diff-zero';
+    const netSign  = data.net < 0 ? '−' : '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(teller)}</td>
+      <td class="num receipts-rs">${fmtAmt(data.added)}</td>
+      <td class="num payments-rs">${fmtAmt(data.reduced)}</td>
+      <td class="num ${netClass}">${netSign}${fmtAmt(Math.abs(data.net))}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const totNetClass = totNet > 0 ? 'diff-positive' : totNet < 0 ? 'diff-negative' : 'diff-zero';
+  const totNetSign  = totNet < 0 ? '−' : '';
+
+  setCell('v2-fileb-net-added',   fmtAmt(totAdded));
+  setCell('v2-fileb-net-reduced', fmtAmt(totReduced));
+
+  const netEl = document.getElementById('v2-fileb-net-total');
+  if (netEl) {
+    netEl.textContent = totNetSign + fmtAmt(Math.abs(totNet));
+    netEl.className   = `num col-net ${totNetClass}`;
+  }
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Build per-teller net from File A
+   Returns { [teller7]: { depTotal: n, wdTotal: n, net: n } }
+   ════════════════════════════════════════════════ */
+function buildV2FileAPerTellerNet(records) {
+  const map = {};
+  records.forEach(r => {
+    if (!map[r.teller]) map[r.teller] = { depTotal: 0, wdTotal: 0, net: 0 };
+    if (r.wd === '100') {
+      map[r.teller].depTotal += r.total;
+      map[r.teller].net      += r.total;
+    } else if (r.wd === '200') {
+      map[r.teller].wdTotal  += r.total;
+      map[r.teller].net      -= r.total;
+    }
+  });
+  return map;
+}
+
+/* ════════════════════════════════════════════════
+   V2 — Render Reconciliation table
+   Per teller: File A net + File B net = 0?
+   ════════════════════════════════════════════════ */
+function renderV2Reconciliation(recordsA, recordsB) {
+  const tbody = document.getElementById('v2-recon-tbody');
+  tbody.innerHTML = '';
+
+  const netA = buildV2FileAPerTellerNet(recordsA);
+  const netB = buildV2FileBPerTellerNet(recordsB);
+
+  const allTellers = [...new Set([...Object.keys(netA), ...Object.keys(netB)])].sort(
+    (a, b) => a.localeCompare(b, undefined, { numeric: true })
+  );
+
+  let totA = 0, totB = 0, totDiff = 0;
+  let balanced = 0, unbalanced = 0;
+  let currentBranch = null;
+
+  allTellers.forEach(teller => {
+    const branch = branchCode(teller);
+    if (branch !== currentBranch) {
+      currentBranch = branch;
+      const hdr = document.createElement('tr');
+      hdr.className = 'branch-header-row';
+      hdr.innerHTML = `<td colspan="5">Branch ${escHtml(branch)}</td>`;
+      tbody.appendChild(hdr);
+    }
+
+    const aNet = netA[teller] ? netA[teller].net : null;
+    const bNet = netB[teller] ? netB[teller].net : null;
+    const diff = (aNet !== null && bNet !== null) ? aNet + bNet : null;
+    const ok   = diff !== null && Math.abs(diff) < 0.005;   // floating-point tolerance
+
+    if (diff !== null) {
+      ok ? balanced++ : unbalanced++;
+      totA    += aNet;
+      totB    += bNet;
+      totDiff += diff;
+    }
+
+    const fmtCell = (n) => n !== null
+      ? `<td class="num">${(n < 0 ? '−' : '') + fmtAmt(Math.abs(n))}</td>`
+      : `<td class="na-cell">—</td>`;
+
+    const diffCls  = diff === null ? 'na-cell'
+                   : ok            ? 'diff-zero'
+                   :                 'diff-negative';
+
+    const diffCell = diff !== null
+      ? `<td class="num ${diffCls}">${(diff < 0 ? '−' : '') + fmtAmt(Math.abs(diff))}</td>`
+      : `<td class="na-cell">—</td>`;
+
+    const statusHtml = diff === null
+      ? '<span class="tally-badge tally-missing">&#9888; Missing</span>'
+      : ok
+        ? '<span class="tally-badge tally-match">&#10003; Balanced</span>'
+        : '<span class="tally-badge tally-diff">&#10007; Unbalanced</span>';
+
+    const tr = document.createElement('tr');
+    tr.className = diff === null ? 'tally-row-missing' : ok ? 'tally-row-match' : 'tally-row-diff';
+    tr.innerHTML = `
+      <td class="teller-id-cell">${escHtml(teller)}</td>
+      ${fmtCell(aNet)}
+      ${fmtCell(bNet)}
+      ${diffCell}
+      <td class="status-cell">${statusHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Footer totals
+  const grandOk       = Math.abs(totDiff) < 0.005;
+  const totDiffClass  = grandOk ? 'diff-zero' : 'diff-negative';
+  const totSign       = (n) => n < 0 ? '−' : '';
+
+  setCell('v2-recon-tot-a',    (totA < 0 ? '−' : '') + fmtAmt(Math.abs(totA)));
+  setCell('v2-recon-tot-b',    (totB < 0 ? '−' : '') + fmtAmt(Math.abs(totB)));
+
+  const totDiffEl = document.getElementById('v2-recon-tot-diff');
+  if (totDiffEl) {
+    totDiffEl.textContent = totSign(totDiff) + fmtAmt(Math.abs(totDiff));
+    totDiffEl.className   = `num col-net ${totDiffClass}`;
+  }
+
+  const totStatusEl = document.getElementById('v2-recon-tot-status');
+  if (totStatusEl) {
+    totStatusEl.innerHTML = grandOk
+      ? '<span class="tally-badge tally-match">&#10003; Balanced</span>'
+      : '<span class="tally-badge tally-diff">&#10007; Unbalanced</span>';
+  }
+
+  // Grand status badge in card header
+  const grandEl = document.getElementById('v2-recon-grand');
+  if (grandEl) {
+    grandEl.textContent = grandOk
+      ? `✓ Balanced (${balanced}/${allTellers.length})`
+      : `✗ ${unbalanced} unbalanced`;
+    grandEl.className = `v2-recon-grand ${grandOk ? 'balanced' : 'unbalanced'}`;
+  }
+}
+
