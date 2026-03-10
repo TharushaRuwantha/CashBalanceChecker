@@ -36,6 +36,10 @@ let receiptsAdjRaw = 0;
 let paymentsAdjRaw = 0;
 let tellerAdjMap   = {};   // { [tellerKey]: { receipts: 0, payments: 0 } }
 
+/* ── Balance file state (reset on new main file) ── */
+let balanceRecords = [];
+let balanceAdjMap  = {};   // { [7-digit-teller]: { depositsNet: 0, withdrawalsNet: 0 } }
+
 /* ── Footer year ── */
 yearEl.textContent = new Date().getFullYear();
 
@@ -68,6 +72,12 @@ fileInput.addEventListener('change', (e) => {
    ════════════════════════════════════════════════ */
 function handleFileLoaded(fileName, rawText) {
   fileNameEl.textContent = fileName;
+
+  // Reset balance file whenever a new main file is loaded
+  balanceRecords = [];
+  balanceAdjMap  = {};
+  document.getElementById('balance-data-wrap').hidden = true;
+  document.getElementById('balance-file-name').textContent = '';
 
   const lines = rawText
     .split('\n')
@@ -262,7 +272,7 @@ function buildAndRenderCashierTable(records) {
   const cashierMap = {};
 
   records
-    .filter(r => r.type === 2)
+    .filter(r => r.teller !== '0')   // same set shown in the raw table — includes type 1 & 2
     .forEach(r => {
       // Service-center units collapse all their tellers into one row
       const key = unitTypes[r.unit] === 'service-center' ? r.unit : r.teller;
@@ -289,9 +299,14 @@ function buildAndRenderCashierTable(records) {
   });
 
   const cashiers = Object.values(cashierMap).map(r => {
-    const adj    = tellerAdjMap[r.name] || { receipts: 0, payments: 0 };
-    const totDep = r.deposits    + adj.receipts;
-    const totWit = r.withdrawals + adj.payments;
+    const adj = tellerAdjMap[r.name] || { receipts: 0, payments: 0 };
+
+    // Match balance-file adjustments using 7-digit normalised teller key
+    const normKey = /^\d+$/.test(r.name) ? r.name.padStart(7, '0') : r.name;
+    const balAdj  = balanceAdjMap[normKey] || { depositsNet: 0, withdrawalsNet: 0 };
+
+    const totDep = r.deposits    + adj.receipts + balAdj.depositsNet;
+    const totWit = r.withdrawals + adj.payments + balAdj.withdrawalsNet;
     return {
       name:        r.name,
       receiptsRs:  Math.floor(Math.abs(totDep) / 100) * (totDep < 0 ? -1 : 1),
@@ -577,6 +592,116 @@ document.getElementById('s-bbf-cts').addEventListener('input', recalcSummary);
     if (e.key === 'Escape') closeMenu();
   });
 }());
+
+/* ════════════════════════════════════════════════
+   Balance (Unbalanced Entries) file
+   ════════════════════════════════════════════════
+   File format (space-delimited, skip line 1):
+     [0] type  [1] unit  [2] teller_id  [3] w/d
+     [4] aa    [5] ab    [6] bb         [7] bc
+
+   Rules applied per row:
+     w/d = 100 → teller deposits   += bb − bc
+     w/d = 200 → teller withdrawals += aa − ab
+
+   Teller IDs are left-padded to 7 digits for matching.
+   ════════════════════════════════════════════════ */
+document.getElementById('balance-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload  = (ev) => handleBalanceFileLoaded(file.name, ev.target.result);
+  reader.onerror = () => alert('Error reading balance file. Please try again.');
+  reader.readAsText(file);
+});
+
+function handleBalanceFileLoaded(fileName, rawText) {
+  const lines = rawText
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .slice(1);  // skip header line
+
+  balanceRecords = parseBalanceFile(lines);
+  buildBalanceAdjMap(balanceRecords);
+  renderBalanceTable(balanceRecords);
+
+  document.getElementById('balance-file-name').textContent = fileName;
+  document.getElementById('balance-data-wrap').hidden = balanceRecords.length === 0;
+
+  // Rebuild cashier table with balance adjustments applied, then sync summary
+  buildAndRenderCashierTable(currentRecords);
+  updateSummaryFromCashierTotals();
+}
+
+function parseBalanceFile(lines) {
+  const records = [];
+  lines.forEach(line => {
+    const parts = line.split(/\s+/);
+    if (parts.length < 8) return;
+
+    const rawTeller = parts[2];
+    // Pad teller ID to 7 digits with leading zeros
+    const teller = /^\d+$/.test(rawTeller) ? rawTeller.padStart(7, '0') : rawTeller;
+
+    records.push({
+      unit:   parts[1],
+      teller: teller,
+      wd:     parts[3],          // '100' or '200'
+      aa:     parseInt(parts[4], 10) || 0,
+      ab:     parseInt(parts[5], 10) || 0,
+      bb:     parseInt(parts[6], 10) || 0,
+      bc:     parseInt(parts[7], 10) || 0,
+    });
+  });
+  return records;
+}
+
+function buildBalanceAdjMap(records) {
+  balanceAdjMap = {};
+  records.forEach(r => {
+    if (!balanceAdjMap[r.teller]) {
+      balanceAdjMap[r.teller] = { depositsNet: 0, withdrawalsNet: 0 };
+    }
+    if (r.wd === '100') {
+      balanceAdjMap[r.teller].depositsNet    += r.bb - r.bc;
+    } else if (r.wd === '200') {
+      balanceAdjMap[r.teller].withdrawalsNet += r.aa - r.ab;
+    }
+  });
+}
+
+function renderBalanceTable(records) {
+  const tbody = document.getElementById('balance-tbody');
+  tbody.innerHTML = '';
+
+  records.forEach(r => {
+    let net = 0, netLabel = '', netClass = 'bal-net-zero';
+
+    if (r.wd === '100') {
+      net      = r.bb - r.bc;
+      netLabel = `Dep ${net >= 0 ? '+' : '\u2212'}${fmt(Math.floor(Math.abs(net) / 100))}.${fmtCts(Math.abs(net) % 100)}`;
+      netClass = net >= 0 ? 'bal-net-dep' : 'bal-net-pay';
+    } else if (r.wd === '200') {
+      net      = r.aa - r.ab;
+      netLabel = `Pay ${net >= 0 ? '+' : '\u2212'}${fmt(Math.floor(Math.abs(net) / 100))}.${fmtCts(Math.abs(net) % 100)}`;
+      netClass = net >= 0 ? 'bal-net-pay' : 'bal-net-dep';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escHtml(r.unit)}</td>
+      <td>${escHtml(r.teller)}</td>
+      <td>${escHtml(r.wd)}</td>
+      <td class="num">${fmtBig(r.aa)}</td>
+      <td class="num">${fmtBig(r.ab)}</td>
+      <td class="num">${fmtBig(r.bb)}</td>
+      <td class="num">${fmtBig(r.bc)}</td>
+      <td class="${netClass}">${escHtml(netLabel)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
 /* ════════════════════════════════════════════════
    Calculate button
