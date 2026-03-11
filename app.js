@@ -1624,18 +1624,21 @@ function renderV2Reconciliation(recordsA, recordsB) {
     if (!formatterRules.length) return line;
     const chars = line.replace(/\s/g, '');
     if (!chars) return '';
-    let result   = '';
-    let pos      = 0;
-    let ruleIdx  = 0;
-    while (pos < chars.length) {
-      const rule  = formatterRules[ruleIdx % formatterRules.length];
+    let result = '';
+    let pos    = 0;
+    // Apply each rule exactly once per line, in order
+    for (let i = 0; i < formatterRules.length && pos < chars.length; i++) {
+      const rule  = formatterRules[i];
       const chunk = chars.slice(pos, pos + rule.digits);
       result += chunk;
       pos    += rule.digits;
       if (pos < chars.length) {
         result += ' '.repeat(rule.spaces);
       }
-      ruleIdx++;
+    }
+    // Append any remaining characters as-is
+    if (pos < chars.length) {
+      result += chars.slice(pos);
     }
     return result;
   }
