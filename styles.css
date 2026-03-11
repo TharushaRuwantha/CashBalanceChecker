@@ -1271,3 +1271,206 @@ td, th { padding: .6rem .9rem; }
   .tally-card { overflow-x: auto; }
   .second-upload-card { padding: 1.75rem 1.5rem; }
 }
+
+/* ══════════════════════════════════════════════════
+   TXT Formatter View
+   ══════════════════════════════════════════════════ */
+.formatter-view {
+  flex: 1;
+}
+
+.formatter-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Upload card */
+.formatter-upload-card .card-header {
+  padding-bottom: .75rem;
+  border-bottom: 1.5px solid var(--clr-border);
+  margin-bottom: 1rem;
+}
+
+.formatter-upload-body {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.formatter-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  white-space: nowrap;
+}
+
+.formatter-file-status {
+  font-size: .85rem;
+  color: var(--clr-txt-muted);
+  font-style: italic;
+}
+
+/* Rules card */
+.formatter-rules-card .card-header {
+  border-bottom: 1.5px solid var(--clr-border);
+  padding-bottom: .75rem;
+  margin-bottom: 1rem;
+}
+
+.card-subtitle {
+  font-size: .8rem;
+  color: var(--clr-txt-muted);
+  margin: .2rem 0 0;
+}
+
+.formatter-rules-body {
+  padding: .5rem 0;
+}
+
+.formatter-rules-header-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2rem;
+  gap: .5rem;
+  padding: 0 0 .4rem;
+  border-bottom: 1px solid var(--clr-border);
+  margin-bottom: .5rem;
+}
+
+.formatter-col-label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--clr-txt-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.formatter-rule-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2rem;
+  gap: .5rem;
+  align-items: center;
+  padding: .3rem 0;
+}
+
+.formatter-rule-input {
+  padding: .35rem .6rem;
+  border: 1.5px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  font-size: .875rem;
+  font-family: inherit;
+  color: var(--clr-txt);
+  background: var(--clr-surface);
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.formatter-rule-input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+}
+
+.formatter-rule-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--clr-txt-muted);
+  font-size: .9rem;
+  padding: .2rem .3rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color .15s, background .15s;
+}
+.formatter-rule-remove:hover {
+  color: #e53e3e;
+  background: #fff0f0;
+}
+
+.formatter-add-rule-btn {
+  margin-top: .75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .8rem;
+}
+
+.formatter-rules-footer {
+  border-top: 1.5px solid var(--clr-border);
+  padding-top: .75rem;
+  margin-top: .75rem;
+}
+
+/* Result card */
+.formatter-result-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.5px solid var(--clr-border);
+  padding-bottom: .75rem;
+  margin-bottom: 0;
+}
+
+.formatter-result-table-wrap {
+  overflow-x: auto;
+}
+
+.formatter-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+
+.formatter-result-table th {
+  background: var(--clr-surface-2);
+  font-weight: 700;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--clr-txt-muted);
+  padding: .6rem .75rem;
+  border-bottom: 1.5px solid var(--clr-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.formatter-result-table td {
+  padding: .45rem .75rem;
+  border-bottom: 1px solid var(--clr-border);
+  vertical-align: top;
+}
+
+.formatter-result-table tr:last-child td { border-bottom: none; }
+.formatter-result-table tr:hover td { background: var(--clr-surface-2); }
+
+.formatter-row-num {
+  color: var(--clr-txt-muted);
+  font-size: .75rem;
+  text-align: center;
+  width: 2.5rem;
+}
+
+.formatter-col-orig,
+.formatter-col-fmt {
+  font-family: 'Courier New', Courier, monospace;
+  word-break: break-all;
+}
+
+.formatter-col-orig code,
+.formatter-col-fmt  code {
+  background: none;
+  font-size: .8rem;
+  white-space: pre;
+}
+
+.formatter-col-fmt { color: var(--clr-primary); }
+
+@media (max-width: 700px) {
+  .formatter-rules-header-row,
+  .formatter-rule-row {
+    grid-template-columns: 1fr 1fr 1.8rem;
+  }
+}
