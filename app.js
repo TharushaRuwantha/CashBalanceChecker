@@ -1150,9 +1150,10 @@ function parseV2FileB(lines) {
     const refNum   = comboMatch ? comboMatch[1] : combined;
     const currency = comboMatch ? comboMatch[2] : '';
 
-    // Last column is the amount
-    const amount = parseFloat(parts[parts.length - 1]);
-    if (isNaN(amount)) return;
+    // Last column is the amount — last 2 digits are decimal places (e.g. 982956982 → 9829569.82)
+    const rawAmount = parseInt(parts[parts.length - 1], 10);
+    if (isNaN(rawAmount)) return;
+    const amount = rawAmount / 100;
 
     records.push({ controlUnit, teller1, teller2, ref, refNum, currency, amount });
   });
