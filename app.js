@@ -1014,30 +1014,28 @@ function splitPaise(raw) {
 }
 
 /* ════════════════════════════════════════════════
-   Navigation Tabs — Main / V2
+   Navigation Tabs — Main / V2 / Formatter
    ════════════════════════════════════════════════ */
 (function () {
-  const mainView   = document.querySelector('.app-main');
-  const v2View     = document.getElementById('v2-view');
-  const tabMain    = document.getElementById('tab-main');
-  const tabV2      = document.getElementById('tab-v2');
+  const mainView      = document.querySelector('.app-main');
+  const v2View        = document.getElementById('v2-view');
+  const formatterView = document.getElementById('formatter-view');
+  const tabMain       = document.getElementById('tab-main');
+  const tabV2         = document.getElementById('tab-v2');
+  const tabFormatter  = document.getElementById('tab-formatter');
 
   function switchView(view) {
-    if (view === 'v2') {
-      mainView.hidden = true;
-      v2View.hidden   = false;
-      tabMain.classList.remove('active');
-      tabV2.classList.add('active');
-    } else {
-      mainView.hidden = false;
-      v2View.hidden   = true;
-      tabMain.classList.add('active');
-      tabV2.classList.remove('active');
-    }
+    mainView.hidden      = view !== 'main';
+    v2View.hidden        = view !== 'v2';
+    formatterView.hidden = view !== 'formatter';
+    tabMain.classList.toggle('active',      view === 'main');
+    tabV2.classList.toggle('active',        view === 'v2');
+    tabFormatter.classList.toggle('active', view === 'formatter');
   }
 
-  tabMain.addEventListener('click', () => switchView('main'));
-  tabV2.addEventListener('click',   () => switchView('v2'));
+  tabMain.addEventListener('click',      () => switchView('main'));
+  tabV2.addEventListener('click',        () => switchView('v2'));
+  tabFormatter.addEventListener('click', () => switchView('formatter'));
 })();
 
 /* ════════════════════════════════════════════════
@@ -1567,4 +1565,143 @@ function renderV2Reconciliation(recordsA, recordsB) {
     grandEl.className = `v2-recon-grand ${grandOk ? 'balanced' : 'unbalanced'}`;
   }
 }
+
+/* ════════════════════════════════════════════════
+   TXT Formatter
+   ════════════════════════════════════════════════ */
+(function () {
+  let formatterRawLines = [];
+  let formatterRules    = [];
+  let formatterFileName = 'formatted.txt';
+
+  const fileInput   = document.getElementById('formatter-file-input');
+  const fileStatus  = document.getElementById('formatter-file-status');
+  const panel       = document.getElementById('formatter-panel');
+  const rulesList   = document.getElementById('formatter-rules-list');
+  const addRuleBtn  = document.getElementById('formatter-add-rule');
+  const applyBtn    = document.getElementById('formatter-apply-btn');
+  const resultCard  = document.getElementById('formatter-result-card');
+  const resultTbody = document.getElementById('formatter-result-tbody');
+  const downloadBtn = document.getElementById('formatter-download-btn');
+
+  function addRuleRow(digits, spaces) {
+    const idx = formatterRules.length;
+    formatterRules.push({ digits: digits || 3, spaces: spaces !== undefined ? spaces : 1 });
+
+    const row = document.createElement('div');
+    row.className = 'formatter-rule-row';
+    row.dataset.idx = idx;
+    row.innerHTML =
+      '<input type="number" class="formatter-rule-input fmt-digits" value="' + (digits || 3) + '" min="1" placeholder="Digits" />' +
+      '<input type="number" class="formatter-rule-input fmt-spaces" value="' + (spaces !== undefined ? spaces : 1) + '" min="0" placeholder="Spaces" />' +
+      '<button class="formatter-rule-remove" title="Remove rule">&#x2715;</button>';
+
+    row.querySelector('.fmt-digits').addEventListener('input', function (e) {
+      formatterRules[+row.dataset.idx].digits = Math.max(1, parseInt(e.target.value) || 1);
+    });
+    row.querySelector('.fmt-spaces').addEventListener('input', function (e) {
+      formatterRules[+row.dataset.idx].spaces = Math.max(0, parseInt(e.target.value) || 0);
+    });
+    row.querySelector('.formatter-rule-remove').addEventListener('click', function () {
+      row.remove();
+      rebuildRulesFromDOM();
+    });
+
+    rulesList.appendChild(row);
+  }
+
+  function rebuildRulesFromDOM() {
+    formatterRules = [];
+    rulesList.querySelectorAll('.formatter-rule-row').forEach(function (row, i) {
+      row.dataset.idx = i;
+      const d = Math.max(1, parseInt(row.querySelector('.fmt-digits').value) || 1);
+      const s = Math.max(0, parseInt(row.querySelector('.fmt-spaces').value) || 0);
+      formatterRules.push({ digits: d, spaces: s });
+    });
+  }
+
+  function formatLine(line) {
+    if (!formatterRules.length) return line;
+    const chars = line.replace(/\s/g, '');
+    if (!chars) return '';
+    let result   = '';
+    let pos      = 0;
+    let ruleIdx  = 0;
+    while (pos < chars.length) {
+      const rule  = formatterRules[ruleIdx % formatterRules.length];
+      const chunk = chars.slice(pos, pos + rule.digits);
+      result += chunk;
+      pos    += rule.digits;
+      if (pos < chars.length) {
+        result += ' '.repeat(rule.spaces);
+      }
+      ruleIdx++;
+    }
+    return result;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/ /g, '&nbsp;');
+  }
+
+  function renderResult(results) {
+    resultTbody.innerHTML = '';
+    results.forEach(function (item, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="formatter-row-num">' + (i + 1) + '</td>' +
+        '<td class="formatter-col-orig"><code>' + escapeHtml(item.original)  + '</code></td>' +
+        '<td class="formatter-col-fmt"><code>'  + escapeHtml(item.formatted) + '</code></td>';
+      resultTbody.appendChild(tr);
+    });
+    resultCard.hidden = false;
+  }
+
+  fileInput.addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    formatterFileName = file.name.replace(/\.txt$/i, '') + '_formatted.txt';
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+      formatterRawLines = ev.target.result.split('\n').map(function (l) { return l.trimEnd(); });
+      fileStatus.textContent = file.name + '  (' + formatterRawLines.length + ' rows)';
+      panel.hidden      = false;
+      resultCard.hidden = true;
+      resultTbody.innerHTML = '';
+    };
+    reader.onerror = function () { alert('Error reading file. Please try again.'); };
+    reader.readAsText(file);
+  });
+
+  addRuleBtn.addEventListener('click', function () { addRuleRow(); });
+
+  applyBtn.addEventListener('click', function () {
+    rebuildRulesFromDOM();
+    if (!formatterRules.length) { alert('Please add at least one formatting rule.'); return; }
+    const results = formatterRawLines.map(function (line) {
+      return { original: line, formatted: formatLine(line) };
+    });
+    renderResult(results);
+  });
+
+  downloadBtn.addEventListener('click', function () {
+    rebuildRulesFromDOM();
+    const text = formatterRawLines.map(function (l) { return formatLine(l); }).join('\n');
+    const blob  = new Blob([text], { type: 'text/plain' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href     = url;
+    a.download = formatterFileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  /* Default two rules: (3, 2) and (5, 1) */
+  addRuleRow(3, 2);
+  addRuleRow(5, 1);
+})();
 
