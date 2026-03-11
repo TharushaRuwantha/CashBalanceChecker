@@ -1622,24 +1622,27 @@ function renderV2Reconciliation(recordsA, recordsB) {
 
   function formatLine(line) {
     if (!formatterRules.length) return line;
-    const chars = line.replace(/\s/g, '');
-    if (!chars) return '';
     let result = '';
-    let pos    = 0;
+    let pos    = 0;  // position in the ORIGINAL line
     // Apply each rule exactly once per line, in order
-    for (let i = 0; i < formatterRules.length && pos < chars.length; i++) {
-      const rule  = formatterRules[i];
-      const chunk = chars.slice(pos, pos + rule.digits);
-      result += chunk;
-      pos    += rule.digits;
-      if (pos < chars.length) {
+    for (let i = 0; i < formatterRules.length; i++) {
+      const rule     = formatterRules[i];
+      let collected  = '';
+      let need       = rule.digits;
+      // Collect `rule.digits` non-space chars from the original line
+      while (pos < line.length && need > 0) {
+        const ch = line[pos++];
+        if (ch !== ' ') { collected += ch; need--; }
+      }
+      if (!collected) break;
+      result += collected;
+      // Add spaces only if there is still content remaining
+      if (pos < line.length) {
         result += ' '.repeat(rule.spaces);
       }
     }
-    // Append any remaining characters as-is
-    if (pos < chars.length) {
-      result += chars.slice(pos);
-    }
+    // Append the rest of the original line exactly as-is (spaces and all)
+    result += line.slice(pos);
     return result;
   }
 
